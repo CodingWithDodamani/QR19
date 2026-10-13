@@ -21,12 +21,13 @@ cp .env.example .env   # DATABASE_URL=file:../db/custom.db — relative to prism
 npx prisma db push     # REQUIRED before dev; creates db/custom.db + client. Use bun run db:push if bun.
 npm run dev            # next dev -p 3000 | tee dev.log → http://localhost:3000
 npm test               # vitest run — 21 tests (upi splitters + processProviderEvent guards incl. concurrency/crash redelivery), isolated DB in node_modules/.cache, no dev-data pollution
-npm run lint           # eslint . — NOTE: nearly all rules off in eslint.config.mjs, always passes
+npm run typecheck      # tsc --noEmit — must pass; build also type-checks (ignoreBuildErrors:false)
+npm run lint           # eslint . — no-unused-vars/no-explicit-any are warn; errors fail CI
 npm run build          # next build + manual cp of .next/static + public into .next/standalone/ — do not delete the cp step
 ```
 
-- No CI. Manual E2E still via checklist: `docs/sequential-payments.md:179-210`, `docs/fraud-shield.md:87-97`.
-- No `tsc` script. `next.config.ts:5-6` has `ignoreBuildErrors:true, reactStrictMode:false` — build won't catch types. Run `npx tsc --noEmit` explicitly.
+- CI: `.github/workflows/ci.yml` (install → typecheck → lint → test → build). Manual E2E still via checklist: `docs/sequential-payments.md:179-210`, `docs/fraud-shield.md:87-97`.
+- `next.config.ts` has `ignoreBuildErrors:false, reactStrictMode:true` — build catches types. Run `npm run typecheck` explicitly.
 - DB scripts: `db:generate`, `db:migrate`, `db:reset` (`prisma migrate reset` — destructive). Prefer `db:push` locally.
 - Rebuild download zip: `bash scripts/export-source.sh` (excludes `.env`, `db/custom.db`, logs).
 
@@ -57,7 +58,7 @@ npm run build          # next build + manual cp of .next/static + public into .n
 ## Risks/Gaps → improvement plan
 
 1. Single-instance bus + limiter → Redis pub/sub + counters; gate behind `REDIS_URL`.
-2. `ignoreBuildErrors` + neutered ESLint → re-enable `tsc --noEmit` in CI + restore `no-unused-vars/no-explicit-any` as warn.
+2. ~~`ignoreBuildErrors` + neutered ESLint~~ DONE: `ignoreBuildErrors:false` + `reactStrictMode:true` (`next.config.ts`), `no-unused-vars/no-explicit-any` as warn (`eslint.config.mjs`), `npm run typecheck` script + CI (`.github/workflows/ci.yml`: install → typecheck → lint → test → build).
 3. ~~`db.ts` query logging everywhere~~ DONE: gated on `NODE_ENV=development` (`db.ts:10`); still open: Postgres datasource option for prod.
 4. ~~Demo fallback encryption key + `SESSION_SECRET` unset~~ DONE: `src/lib/env.ts` (`validateProductionEnv`/`assertProductionEnv`, `MIN_PROD_SECRET_LENGTH=32`) enforced at boot via `src/instrumentation.ts` — throws in `NODE_ENV=production` (skipped for `next build`), warns once in dev; covered by `src/lib/env.test.ts`.
 5. ~~No automated tests~~ → DONE: vitest (`npm test`, config `vitest.config.ts`, global-setup rebuilds isolated DB, `src/lib/upi.test.ts` + `src/lib/payment/service.guards.test.ts`); keep docs checklists as E2E.

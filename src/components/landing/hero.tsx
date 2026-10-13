@@ -49,15 +49,15 @@ export function Hero() {
       {/* Animated WebGL gradient band (warm fallback color if WebGL is off) */}
       <GradientWave colors={HERO_WAVE_COLORS} isPlaying={!prefersReducedMotion} />
 
-      <div className="relative mx-auto max-w-6xl px-4 text-center sm:px-6 lg:px-8">
+      <div className="relative mx-auto flex max-w-6xl flex-col items-center px-4 text-center sm:px-6 lg:px-8">
         <motion.h1
           initial={{ opacity: 0, y: 26 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.08, ease: EASE }}
-          className="text-display-xl font-display mx-auto mt-5 max-w-3xl text-balance text-center font-bold text-[#121a26] lg:max-w-4xl lg:text-[76px] lg:leading-[1.02] lg:tracking-[-0.04em]"
+          className="text-display-xl font-display mx-auto mt-5 flex w-full max-w-3xl flex-col items-center justify-center text-center font-bold text-[#121a26] lg:max-w-4xl lg:text-[76px] lg:leading-[1.02] lg:tracking-[-0.04em] lg:[text-indent:-0.04em]"
         >
-          <span className="block">Collect every rupee.</span>
-          <span className="block">Pay ₹0 fees.</span>
+          <span className="block w-full text-center">Collect every rupee.</span>
+          <span className="block w-full text-center">Pay ₹0 fees.</span>
         </motion.h1>
 
         <motion.p

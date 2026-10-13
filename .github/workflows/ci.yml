@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+        name: typecheck (tsc --noEmit)
+      - run: npm run lint
+        name: lint (warnings fail on errors only)
+      - run: npm test
+        name: tests (vitest)
+      - run: npm run build
+        name: build (type errors fail the build)
+        env:
+          DATABASE_URL: file:../db/custom.db
