@@ -1,0 +1,20 @@
+{
+  "name": "QR19 — Collect the full amount",
+  "short_name": "QR19",
+  "description": "Split any bill into UPI QR codes of ₹1,999 or less and collect the full amount, one verified payment at a time.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6fafd",
+  "theme_color": "#121a26",
+  "categories": ["finance", "business"],
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

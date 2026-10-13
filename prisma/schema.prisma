@@ -1,0 +1,204 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client-alt {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma-gen2"
+}
+// client-alt regenerates the SAME client into .prisma-gen2 — used only when
+// a running dev server locks the default .prisma/client DLL on Windows.
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  title     String
+  content   String?
+  published Boolean  @default(false)
+  authorId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// A staff-created, ordered collection of payment QR codes ("sequential
+/// payment session"). Server is the single source of truth for progress.
+model PaymentQueue {
+  id             String   @id @default(cuid())
+  upiId          String
+  payeeName      String
+  note           String?
+  totalPaise     Int
+  totalCount     Int
+  /// Index (into orders, ordered by seq) of the currently payable order.
+  /// -1 once no payable order remains. Persisted, but always recomputed
+  /// from order statuses on read (orders are authoritative).
+  currentIndex   Int      @default(0)
+  /// active | completed | cancelled
+  status         String   @default("active")
+  /// Client-supplied key; same key returns the same queue instead of
+  /// double-generating it (prevents accidental duplicate sessions).
+  idempotencyKey String   @unique
+  /// Anti-scam "unique amounts" mode: every order's amount differs by at
+  /// least ₹1, so the amount that lands identifies exactly one QR and a
+  /// single payment proof can never be reused on a second QR.
+  uniqueAmounts  Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  orders PaymentOrder[]
+
+  @@index([createdAt])
+}
+
+/// One payment QR / order in a queue. Bound to a unique order ID, amount,
+/// merchant (payee) account and expiry. Never trust the client to change
+/// status — only the webhook processor (or DEMO simulator through the same
+/// processor) and audited staff overrides may transition status.
+model PaymentOrder {
+  id            String    @id @default(cuid())
+  queueId       String
+  queue         PaymentQueue @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  /// 1-based position in the queue (display order).
+  seq           Int
+  /// Unique payment intent reference embedded in the QR payload (UPI `tr`)
+  /// and expected inside PSP webhook events.
+  orderId       String    @unique
+  amountPaise   Int
+  /// pending | displayed | paid | expired | cancelled | failed | skipped
+  status        String    @default("pending")
+  /// UPI deep link encoded in the QR image (rendered client-side in
+  /// demo/generic modes; in Razorpay mode the provider's own QR is shown).
+  qrPayload     String
+  /// Provider transaction reference. UNIQUE: one ref verifies exactly one
+  /// order, ever — the anti-replay invariant is enforced at the DB level
+  /// (P2002 on a second insert maps to the duplicate_txn_ref fraud path).
+  providerRef   String? @unique
+  failureReason String?
+  /// Razorpay QR code id ("qr_...") when the order was provisioned on the
+  /// PSP. Webhook events are correlated back to the order through it.
+  /// Paytm mode: stores the Dynamic QR API's qrImageId (when returned).
+  providerQrId        String?
+  /// Hosted QR image URL returned by the PSP (served via a server proxy).
+  providerQrImageUrl  String?
+  /// PhonePe PAY_PAGE mode: the PhonePe-hosted payment page URL. PhonePe
+  /// does not return a scannable UPI QR string for this flow, so none is
+  /// fabricated — the UI shows this link and the server verifies through
+  /// PhonePe's Check Payment Status API.
+  paymentPageUrl      String?
+  /// Last provisioning error — surfaced honestly instead of a fake QR.
+  providerQrError     String?
+  providerQrCreatedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  expiresAt     DateTime
+  paidAt        DateTime?
+
+  @@unique([queueId, seq])
+  @@index([queueId, status])
+  @@index([providerQrId])
+  @@index([providerRef])
+}
+
+/// Every received provider event (live webhook or DEMO simulation), stored
+/// with a unique event ID so duplicate deliveries are idempotent. Payload is
+/// a redacted whitelist of fields — no PSP secrets are persisted.
+model WebhookEvent {
+  id         String   @id
+  queueId    String?
+  orderId    String?
+  kind       String
+  /// true when the event changed state or was correctly accounted for.
+  handled    Boolean  @default(false)
+  /// ok | duplicate | unknown_order | amount_mismatch | not_payable | already_paid | ignored_type | invalid
+  reason     String?
+  payload    String
+  receivedAt DateTime @default(now())
+
+  @@index([orderId])
+}
+
+/// Append-only trail of status transitions and staff overrides.
+model AuditLog {
+  id        String   @id @default(cuid())
+  queueId   String
+  orderId   String?
+  action    String
+  /// webhook | demo | staff | system
+  actor     String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([queueId, createdAt])
+}
+
+/// Fraud / tamper signals raised by the payment pipeline. Rows are deduped
+/// by a stable `fingerprint` (type + order + discriminator) so a repeated
+/// attack increments `count` instead of flooding the merchant's inbox.
+/// This is the ledger behind the merchant-facing Fraud Shield.
+model FraudAlert {
+  id          String   @id @default(cuid())
+  /// DUPLICATE_TXN_REF | AMOUNT_MISMATCH | REPLAYED_SUCCESS |
+  /// STALE_ORDER_PAYMENT | UNKNOWN_ORDER_PAYMENT | SIGNATURE_FAIL
+  type        String
+  /// low | medium | high
+  severity    String   @default("medium")
+  /// Stable dedupe key — one row per distinct attack pattern.
+  fingerprint String   @unique
+  message     String
+  detailsJson String?
+  count       Int      @default(1)
+  queueId     String?
+  orderId     String?
+  createdAt   DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  @@index([lastSeenAt])
+  @@index([queueId])
+}
+
+/// Merchant-configured PSP credentials (singleton row). Secrets are stored
+/// AES-256-GCM encrypted; they are never returned to any client — only a
+/// masked preview. This is what turns the demo PSP console into a real one:
+/// with these credentials the app talks to the actual Razorpay API.
+model PspSettings {
+  id               String    @id // "singleton"
+  /// Active provider: razorpay | phonepe | paytm
+  provider         String    @default("razorpay")
+  /// Environment for phonepe/paytm: "test" | "live". Razorpay derives it
+  /// from the keyId prefix (rzp_test_ / rzp_live_).
+  env              String?
+  /// Razorpay key id | PhonePe merchantId | Paytm MID
+  keyId            String?
+  /// AES-256-GCM encrypted secret: Razorpay key secret | PhonePe salt key |
+  /// Paytm merchant key.
+  keySecretEnc     String?
+  /// AES-256-GCM encrypted webhook signing secret (optional; Razorpay only
+  /// — PhonePe/Paytm callbacks are verified with the merchant salt/key).
+  webhookSecretEnc String?
+  /// Non-secret extras as JSON, e.g. {"saltIndex":"1"} for PhonePe.
+  extraJson        String?
+  enabled          Boolean   @default(false)
+  lastTestAt       DateTime?
+  lastTestOk       Boolean?
+  lastTestMessage  String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
