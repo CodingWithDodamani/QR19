@@ -3,13 +3,16 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import Link from "next/link";
-import { Check, Copy, ShieldCheck } from "lucide-react";
+import { Check, Copy, MessageCircle, ShieldCheck } from "lucide-react";
 
 import { useOnline } from "@/hooks/use-online";
 import {
   loadMerchantProfile,
+  loadWhatsAppAlertPrefs,
   saveMerchantProfile,
+  saveWhatsAppAlertPrefs,
 } from "@/lib/offline/notifications";
+import { normalizeRecipientDigits } from "@/lib/payment/whatsapp";
 
 import { tapTick } from "./mobile-shell";
 
@@ -42,15 +45,22 @@ export function ProfileScreen() {
   const [appUrl, setAppUrl] = useState("");
   const [appQr, setAppQr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [waEnabled, setWaEnabled] = useState(false);
+  const [waNumber, setWaNumber] = useState("");
+  const [waSaved, setWaSaved] = useState(false);
+  const [waError, setWaError] = useState("");
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- intentional post-mount sync from device storage; cannot run during render without breaking hydration. */
     const profile = loadMerchantProfile();
     if (profile) {
-      // Post-hydration sync from device storage.
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional post-mount sync; cannot be computed during render without breaking hydration.
       setName(profile.name);
       setUpiId(profile.upiId);
     }
+    const waPrefs = loadWhatsAppAlertPrefs();
+    setWaEnabled(waPrefs.enabled);
+    setWaNumber(waPrefs.number);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   useEffect(() => {
@@ -101,6 +111,34 @@ export function ProfileScreen() {
     saveMerchantProfile({ name: name.trim(), upiId: upiId.trim() });
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2200);
+  }
+
+  const waNumberValid = normalizeRecipientDigits(waNumber) !== null;
+
+  function handleWaToggle() {
+    tapTick();
+    if (!waNumberValid) {
+      setWaError("Add an alert number first, then switch on.");
+      return;
+    }
+    setWaError("");
+    const next = !waEnabled;
+    setWaEnabled(next);
+    saveWhatsAppAlertPrefs({ enabled: next, number: waNumber.trim() });
+    setWaSaved(true);
+    window.setTimeout(() => setWaSaved(false), 2200);
+  }
+
+  function handleWaSave() {
+    tapTick();
+    if (!waNumberValid) {
+      setWaError("Enter a valid WhatsApp number with country code, e.g. +919876543210.");
+      return;
+    }
+    setWaError("");
+    saveWhatsAppAlertPrefs({ enabled: waEnabled, number: waNumber.trim() });
+    setWaSaved(true);
+    window.setTimeout(() => setWaSaved(false), 2200);
   }
 
   async function handleCopyLink() {
@@ -164,6 +202,59 @@ export function ProfileScreen() {
         </button>
         <p className="ep-privacy">No account, no password, no upload — pre-fills the Collect form.</p>
       </form>
+
+      <section className="ep-card" aria-label="WhatsApp payment alerts">
+        <h2 className="ep-h2">
+          <MessageCircle size={15} aria-hidden="true" /> WhatsApp payment alerts
+        </h2>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={waEnabled}
+          aria-label="Enable WhatsApp payment alerts"
+          className={waEnabled ? "ep-toggle ep-toggle-on" : "ep-toggle"}
+          onClick={handleWaToggle}
+        >
+          <MessageCircle size={16} aria-hidden="true" />
+          <span>
+            Send a WhatsApp receipt on every payment <em>{waEnabled ? "on" : "off"}</em>
+          </span>
+          <span className="ep-switch" aria-hidden="true" />
+        </button>
+        <label className="ep-field">
+          <span>Alert number <em>with country code</em></span>
+          <input
+            value={waNumber}
+            onChange={(e) => {
+              setWaNumber(e.target.value);
+              setWaSaved(false);
+              setWaError("");
+            }}
+            placeholder="+919876543210"
+            inputMode="tel"
+            autoComplete="tel"
+            maxLength={20}
+          />
+        </label>
+        <button
+          type="button"
+          className="ep-btn-secondary"
+          onClick={handleWaSave}
+          aria-label="Save alert number on this device"
+        >
+          {waSaved ? <Check size={15} aria-hidden="true" /> : null}
+          {waSaved ? "Saved on this device" : "Save alert number"}
+        </button>
+        {waError ? (
+          <p className="ep-error" role="alert">{waError}</p>
+        ) : null}
+        <p className="ep-muted">
+          When on, every verified payment in a collection started from this device sends this
+          number a receipt — amount received, position in the split, total, provider. Demo
+          servers log the receipt; real messages go out once the server&apos;s WhatsApp live
+          mode is configured.
+        </p>
+      </section>
 
       <section className="ep-card" aria-label="Payment mode">
         <div className="ep-kv">

@@ -9,6 +9,12 @@
  * - `WHATSAPP_ALERTS=live` fails closed: missing/blank creds → off (logged).
  * - A send failure NEVER bubbles into the payment flow — every error is
  *   swallowed + logged here; the caller runs this fire-and-forget.
+ * - Per-queue merchant enable (mobile Profile card → `PaymentQueue.
+ *   whatsappAlerts` + `whatsappNumber`): when a queue enables alerts with a
+ *   number while env is UNSET, that queue's paid orders produce demo-log
+ *   alerts scoped to that number only. Real network sends still require the
+ *   env live knob + creds — a merchant toggle alone can never make the
+ *   server send through Meta.
  *
  * Message shape: Meta requires pre-approved HSM templates for the first
  * message to a recipient. We send a fixed `payment_received` template with
@@ -58,25 +64,54 @@ export interface PaidAlert {
 /**
  * Parse + validate env into a config. Returns `null` when alerts are off.
  *
- * `dbRecipients` — numbers added from the PSP console (stored in the DB) —
- * merge with the env list (deduped, env order first) and together satisfy the
- * live-mode "at least one recipient" requirement.
+ * `globalRecipients` — env WHATSAPP_RECIPIENT + console-added numbers (stored
+ * in the DB), merged (deduped, env order first).
+ *
+ * `queueAlerts` — per-queue merchant switch from the mobile Profile card.
+ * When enabled with a number while the env knob is UNSET, a demo config is
+ * returned scoped to that queue's number only (log-only; live still requires
+ * the env live knob + creds). When env is demo/live, the queue number is
+ * merged into the recipients iff the queue toggle is on. A disabled queue
+ * never contributes its number, and a queue toggle alone (enabled without a
+ * number) contributes nothing.
  */
-export function resolveWhatsAppConfig(dbRecipients: readonly string[] = []): WhatsAppConfig | null {
+export function resolveWhatsAppConfig(
+  globalRecipients: readonly string[] = [],
+  queueAlerts?: { enabled: boolean; number: string | null }
+): WhatsAppConfig | null {
   const raw = (process.env.WHATSAPP_ALERTS ?? "").trim().toLowerCase();
-  if (raw !== "live" && raw !== "demo") return null; // "off" unless explicitly enabled
+  const envSelected = raw === "live" || raw === "demo";
+
+  const queueNumber = queueAlerts?.number
+    ? normalizeRecipientDigits(queueAlerts.number)
+    : null;
+  const queueEnabled = queueAlerts?.enabled === true && queueNumber !== null;
+
+  // Env unset + no merchant enable → still fully off.
+  if (!envSelected && !queueEnabled) return null;
   const mode: WhatsAppAlertsMode = raw === "live" ? "live" : "demo";
 
   const phoneNumberId = (process.env.WHATSAPP_PHONE_NUMBER_ID ?? "").trim();
   const accessToken = (process.env.WHATSAPP_ACCESS_TOKEN ?? "").trim();
   const templateName = (process.env.WHATSAPP_TEMPLATE_NAME ?? "payment_received").trim();
   const languageCode = (process.env.WHATSAPP_LANGUAGE_CODE ?? "en").trim();
-  const recipients = parseRecipients(process.env.WHATSAPP_RECIPIENT ?? "");
-  // Console-added numbers merge with the env list — normalized + deduped,
-  // env order first.
-  for (const entry of dbRecipients) {
-    const digits = normalizeRecipientDigits(entry);
-    if (digits && !recipients.includes(digits)) recipients.push(digits);
+  const recipients: string[] = [];
+
+  if (envSelected) {
+    for (const entry of parseRecipients(process.env.WHATSAPP_RECIPIENT ?? "")) {
+      if (!recipients.includes(entry)) recipients.push(entry);
+    }
+    for (const entry of globalRecipients) {
+      const digits = normalizeRecipientDigits(entry);
+      if (digits && !recipients.includes(digits)) recipients.push(digits);
+    }
+    if (queueEnabled && queueNumber && !recipients.includes(queueNumber)) {
+      recipients.push(queueNumber);
+    }
+  } else {
+    // Merchant-enabled queue while env is unset: demo-logged, scoped to the
+    // queue's own number — operator-level lists stay untouched.
+    recipients.push(queueNumber!);
   }
 
   // Fail closed on live: creds must be present, or we degrade to off so a

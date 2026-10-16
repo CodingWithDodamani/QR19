@@ -688,7 +688,10 @@ export async function processProviderEvent(
     void (async () => {
       try {
         const [queue, provider, waRows] = await Promise.all([
-          db.paymentQueue.findUnique({ where: { id: current.queueId } }),
+          db.paymentQueue.findUnique({
+            where: { id: current.queueId },
+            select: { totalCount: true, whatsappNumber: true, whatsappAlerts: true },
+          }),
           resolvePaymentMode(),
           // Console-added alert recipients (PSP console → WhatsApp card) merge
           // with the env WHATSAPP_RECIPIENT list at send time.
@@ -697,6 +700,11 @@ export async function processProviderEvent(
             select: { number: true },
           }),
         ]);
+        // Operator-level recipients (env + console). The per-queue merchant
+        // number is joined by `resolveWhatsAppConfig` itself, gated on the
+        // queue's Profile-card enable switch (`whatsappAlerts`) — an enabled
+        // queue with a number always produces at least a demo-log alert.
+        const allDbRecipients = waRows.map((row) => row.number);
         await notifyPaid(
           {
             orderId: current.orderId,
@@ -709,7 +717,10 @@ export async function processProviderEvent(
           actor,
           // Resolved here (not inside notifyPaid) so the DB-added numbers are
           // included; `null` = alerts off / live-fail-closed → no-op.
-          resolveWhatsAppConfig(waRows.map((row) => row.number))
+          resolveWhatsAppConfig(allDbRecipients, {
+            enabled: queue?.whatsappAlerts ?? false,
+            number: queue?.whatsappNumber ?? null,
+          })
         );
       } catch (error) {
         // The alert is best-effort; never let it surface into the money path.

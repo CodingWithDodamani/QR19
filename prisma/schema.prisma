@@ -60,6 +60,16 @@ model PaymentQueue {
   /// least ₹1, so the amount that lands identifies exactly one QR and a
   /// single payment proof can never be reused on a second QR.
   uniqueAmounts  Boolean  @default(false)
+  /// Per-queue WhatsApp alert recipient (E.164 without "+"). When set, this
+  /// number receives payment alerts for THIS queue in addition to any
+  /// operator-level (env + console-added) recipients. Optional — self-service
+  /// for the merchant, no admin token needed.
+  whatsappNumber String?
+  /// Per-queue "WhatsApp payment alerts" enable switch (mobile Profile card).
+  /// On + number → THIS queue's paid orders always emit at least a demo-log
+  /// alert to that number, even when WHATSAPP_ALERTS is unset in env. Real
+  /// network sends still require env live mode + Meta creds (fail closed).
+  whatsappAlerts Boolean @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

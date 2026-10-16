@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { motion } from "framer-motion";
-import { ArrowRight, BadgeCheck, Check, ChevronLeft, ChevronRight, Download, Expand, LoaderCircle, LockKeyhole, Share2, ShieldCheck, X } from "lucide-react";
+import { ArrowRight, BadgeCheck, Check, ChevronLeft, ChevronRight, Download, Expand, LoaderCircle, LockKeyhole, MessageCircle, Share2, ShieldCheck, X } from "lucide-react";
 
 import { OfflineBanner } from "@/components/offline/offline-banner";
 import { VerifiedPaymentMode } from "@/components/qr19/verified-payment-mode";
@@ -15,7 +15,12 @@ import {
   removeDraft,
   saveFormDraft,
 } from "@/lib/offline/outbox";
-import { loadMerchantProfile, pushNotification } from "@/lib/offline/notifications";
+import {
+  loadMerchantProfile,
+  loadWhatsAppAlertPrefs,
+  pushNotification,
+} from "@/lib/offline/notifications";
+import { maskRecipient, normalizeRecipientDigits } from "@/lib/payment/whatsapp";
 import type { QueueState } from "@/lib/payment/types";
 import {
   buildUpiLink,
@@ -64,7 +69,22 @@ export function CollectScreen() {
   const [activeQueue, setActiveQueue] = useState<{ id: string; state: QueueState } | null>(null);
   const [zoom, setZoom] = useState<number | null>(null);
   const [verifyLabel, setVerifyLabel] = useState<string | null>(null);
+  const [waAlerts, setWaAlerts] = useState<{ enabled: boolean; number: string }>({ enabled: false, number: "" });
   const { drafts, pendingCount, syncing, syncNow, refresh } = useOfflineQueueSync();
+
+  /** Best-effort attach of the Profile card's alert prefs to a queue. Never
+   *  blocks or fails the money path — server-side alerts are demo-merged
+   *  with env + console recipients at the paid transition themselves. */
+  function syncAlertsToQueue(queueId: string) {
+    const prefs = loadWhatsAppAlertPrefs();
+    const number = normalizeRecipientDigits(prefs.number);
+    if (!number) return;
+    fetch(`/api/payment-queues/${queueId}/whatsapp-number`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ number, alertsEnabled: prefs.enabled }),
+    }).catch(() => undefined);
+  }
 
   /* QR strip navigation: active index + smooth paging + mouse drag. */
   const stripRef = useRef<HTMLDivElement>(null);
@@ -150,6 +170,8 @@ export function CollectScreen() {
       if (profile.upiId) setUpiId(profile.upiId);
       if (profile.name) setAccountName(profile.name);
     }
+    // Post-hydration sync of the Profile card's WhatsApp alert switch.
+    setWaAlerts(loadWhatsAppAlertPrefs());
   }, []);
 
   useEffect(() => {
@@ -193,6 +215,7 @@ export function CollectScreen() {
 
   let previewPayments: number[] = [];
   let uniquePreviewError = "";
+  const waMaskedNumber = normalizeRecipientDigits(waAlerts.number);
   try {
     const previewTotal = parseAmountToPaise(amount);
     if (uniqueMode) {
@@ -278,6 +301,7 @@ export function CollectScreen() {
         throw new Error(data.error ?? "Could not start the collection session.");
       }
       setActiveQueue({ id: data.queueId, state: data.state });
+      syncAlertsToQueue(data.queueId);
     } catch (err) {
       const offline = err instanceof TypeError || (typeof navigator !== "undefined" && navigator.onLine === false);
       if (offline) {
@@ -313,6 +337,7 @@ export function CollectScreen() {
           const state = (await response.json()) as QueueState;
           setActiveQueue({ id: synced[0], state });
           setCollectError("");
+          syncAlertsToQueue(synced[0]);
         }
       } catch {
         // synced but snapshot fetch failed — outbox is already clear
@@ -454,6 +479,12 @@ export function CollectScreen() {
             {uniqueMode ? (
               <span className="ep-tag">
                 <ShieldCheck size={11} aria-hidden="true" /> All amounts different
+              </span>
+            ) : null}
+            {waAlerts.enabled && waMaskedNumber ? (
+              <span className="ep-tag" aria-label="WhatsApp receipts go to your saved alert number">
+                <MessageCircle size={11} aria-hidden="true" /> WhatsApp receipt →{" "}
+                {maskRecipient(waMaskedNumber)}
               </span>
             ) : null}
           </motion.div>

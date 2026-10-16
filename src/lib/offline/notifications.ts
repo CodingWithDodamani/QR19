@@ -112,3 +112,23 @@ export function loadMerchantProfile(): MerchantProfile | null {
 export function saveMerchantProfile(profile: MerchantProfile): void {
   writeJson(PROFILE_KEY, profile);
 }
+
+/* ------------------- WhatsApp alert preferences --------------------- */
+
+const WA_ALERTS_KEY = "whatsapp-alerts";
+
+/** Device-local WhatsApp alert prefs, managed on the Profile card and
+ *  auto-attached to each collection the device starts (Collect screen).
+ *  `number` is the raw input (normalized server-side). */
+export interface WhatsAppAlertPrefs {
+  enabled: boolean;
+  number: string;
+}
+
+export function loadWhatsAppAlertPrefs(): WhatsAppAlertPrefs {
+  return readJson<WhatsAppAlertPrefs>(WA_ALERTS_KEY, { enabled: false, number: "" });
+}
+
+export function saveWhatsAppAlertPrefs(prefs: WhatsAppAlertPrefs): void {
+  writeJson(WA_ALERTS_KEY, prefs);
+}

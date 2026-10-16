@@ -160,6 +160,58 @@ describe("resolveWhatsAppConfig", () => {
     // are too short — all filtered.
     expect(config?.recipients).toEqual(["919876543210", "919123456789"]);
   });
+
+  it("env unset + enabled queue with a number → demo scoped to that number only", () => {
+    const config = resolveWhatsAppConfig(["919111111111"], {
+      enabled: true,
+      number: "919876543210",
+    });
+    expect(config?.mode).toBe("demo");
+    // Operator-level lists stay out of the merchant-scoped demo send.
+    expect(config?.recipients).toEqual(["919876543210"]);
+  });
+
+  it("env unset + enabled queue normalizes the number and filters junk", () => {
+    expect(resolveWhatsAppConfig([], { enabled: true, number: "+91 9876543210" })?.recipients).toEqual([
+      "919876543210",
+    ]);
+    expect(resolveWhatsAppConfig([], { enabled: true, number: "nope" })).toBeNull();
+  });
+
+  it("env unset + enabled queue without a number → null (toggle alone is inert)", () => {
+    expect(resolveWhatsAppConfig(["919111111111"], { enabled: true, number: null })).toBeNull();
+    expect(resolveWhatsAppConfig([], { enabled: true, number: "" })).toBeNull();
+  });
+
+  it("env unset + disabled queue with a number → still off", () => {
+    expect(resolveWhatsAppConfig([], { enabled: false, number: "919876543210" })).toBeNull();
+  });
+
+  it("env demo + enabled queue → queue number merged after globals", () => {
+    setEnv({ WHATSAPP_ALERTS: "demo" });
+    const config = resolveWhatsAppConfig(["919111111111"], {
+      enabled: true,
+      number: "919876543210",
+    });
+    expect(config?.mode).toBe("demo");
+    expect(config?.recipients).toEqual(["919111111111", "919876543210"]);
+  });
+
+  it("env demo + disabled queue → number excluded", () => {
+    setEnv({ WHATSAPP_ALERTS: "demo" });
+    const config = resolveWhatsAppConfig(["919111111111"], {
+      enabled: false,
+      number: "919876543210",
+    });
+    expect(config?.recipients).toEqual(["919111111111"]);
+  });
+
+  it("env live + enabled queue → live, deduped against globals", () => {
+    setEnv(LIVE_ENV);
+    const config = resolveWhatsAppConfig([], { enabled: true, number: "919876543210" });
+    expect(config?.mode).toBe("live");
+    expect(config?.recipients).toEqual(["919876543210"]);
+  });
 });
 
 describe("whatsappStatus", () => {
