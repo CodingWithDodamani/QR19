@@ -55,19 +55,19 @@ export function Features() {
                 aria-hidden="true"
               />
               <div className="relative max-w-sm shrink-0">
-                <span className="grid size-12 place-items-center rounded-xl bg-[#eeedf9] text-[#5140b5]">
+                <span className="grid size-12 place-items-center rounded-xl bg-[#eeedf9] dark:bg-[#5140b5]/20 text-[#5140b5] dark:text-[#a78bfa]">
                   <Split size={22} aria-hidden="true" />
                 </span>
-                <h3 className="mt-4 text-[17px] font-semibold text-[#26364a]">Smart splitting, zero math</h3>
-                <p className="mt-1.5 text-[13.5px] leading-relaxed text-[#65748b]">
+                <h3 className="mt-4 text-[17px] font-semibold text-[#26364a] dark:text-[#f8fafc]">Smart splitting, zero math</h3>
+                <p className="mt-1.5 text-[13.5px] leading-relaxed text-[#65748b] dark:text-[#94a3b8]">
                   Type any amount — QR19 chops it into ₹1,999 chunks and puts the exact remainder on the final code.
                   Every rupee is accounted for.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#635bff]/20 bg-[#635bff]/6 px-3 py-1 text-[11.5px] font-semibold text-[#5140b5]">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#635bff]/20 bg-[#635bff]/6 px-3 py-1 text-[11.5px] font-semibold text-[#5140b5] dark:bg-[#635bff]/20 dark:text-[#a78bfa] dark:border-[#635bff]/30">
                     Up to 100 QR codes
                   </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#f5a623]/30 bg-[#f5a623]/10 px-3 py-1 text-[11.5px] font-semibold text-[#9a6206]">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#f5a623]/30 bg-[#f5a623]/10 px-3 py-1 text-[11.5px] font-semibold text-[#9a6206] dark:bg-[#f5a623]/20 dark:text-[#fbbf24] dark:border-[#f5a623]/30">
                     ₹1,99,900 in one go
                   </span>
                 </div>
@@ -80,7 +80,7 @@ export function Features() {
                   { label: "₹1,002 remainder", width: "20%", tone: "bg-[#f5a623]", animate: true },
                 ].map((bar, i) => (
                   <div key={`${bar.label}-${i}`}>
-                    <div className="h-6 overflow-hidden rounded-md bg-[#f3f5f9]">
+                    <div className="h-6 overflow-hidden rounded-md bg-[#f3f5f9] dark:bg-[#e2e8f0]/10">
                       {bar.animate ? (
                         <motion.div
                           initial={{ width: "0%" }}
@@ -93,7 +93,7 @@ export function Features() {
                         <div className={`h-full rounded-md ${bar.tone}`} style={{ width: bar.width }} />
                       )}
                     </div>
-                    <div className="mt-1 text-[10.5px] font-medium text-[#8b96a8]">{bar.label}</div>
+                    <div className="mt-1 text-[10.5px] font-medium text-[#8b96a8] dark:text-[#94a3b8]">{bar.label}</div>
                   </div>
                 ))}
               </div>
@@ -109,33 +109,33 @@ export function Features() {
               />
               <div className="feature-visual relative flex items-center justify-between">
                 <div className="relative">
-                  <span className="text-[52px] font-bold leading-none tracking-tight text-[#26364a] sm:text-[58px]">
-                    ₹<span className="text-[#f5a623]">0</span>
+                  <span className="text-[52px] font-bold leading-none tracking-tight text-[#26364a] dark:text-[#f8fafc] sm:text-[58px]">
+                    ₹<span className="text-[#f5a623] dark:text-[#fbbf24]">0</span>
                   </span>
                   <motion.span
                     initial={{ scale: 0, rotate: -30 }}
                     whileInView={{ scale: 1, rotate: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: 0.5, type: "spring", stiffness: 260, damping: 16 }}
-                    className="absolute -right-9 -top-1 grid size-7 place-items-center rounded-full bg-[#e5f5ed] text-[#16754b] shadow-sm"
+                    className="absolute -right-9 -top-1 grid size-7 place-items-center rounded-full bg-[#e5f5ed] dark:bg-[#0f2a1d] text-[#16754b] dark:text-[#4ade80] shadow-sm"
                     aria-hidden="true"
                   >
                     <Check size={14} strokeWidth={3} />
                   </motion.span>
                 </div>
-                <span className="grid size-12 place-items-center rounded-xl bg-[#fdf3e0] text-[#c07a08]">
+                <span className="grid size-12 place-items-center rounded-xl bg-[#fdf3e0] dark:bg-[#3b1f00] text-[#c07a08] dark:text-[#fbbf24]">
                   <Wallet size={22} aria-hidden="true" />
                 </span>
               </div>
-              <h3 className="relative mt-5 text-[17px] font-semibold text-[#26364a]">Zero fees. Really.</h3>
-              <p className="relative mt-1.5 text-[13.5px] leading-relaxed text-[#65748b]">
+              <h3 className="relative mt-5 text-[17px] font-semibold text-[#26364a] dark:text-[#f8fafc]">Zero fees. Really.</h3>
+              <p className="relative mt-1.5 text-[13.5px] leading-relaxed text-[#65748b] dark:text-[#94a3b8]">
                 QR19 doesn&rsquo;t take a cut, rent, or subscription. The amount on the QR is the amount that reaches you.
               </p>
               <ul className="relative mt-4 grid grid-cols-2 gap-x-3 gap-y-2">
                 {CHECKS.map((check) => (
-                  <li key={check} className="flex items-center gap-2 text-[12.5px] font-medium text-[#58667a]">
-                    <span className="grid size-4 shrink-0 place-items-center rounded-full bg-[#e5f5ed]">
-                      <Check size={9} strokeWidth={3.5} className="text-[#16754b]" aria-hidden="true" />
+                  <li key={check} className="flex items-center gap-2 text-[12.5px] font-medium text-[#58667a] dark:text-[#94a3b8]">
+                    <span className="grid size-4 shrink-0 place-items-center rounded-full bg-[#e5f5ed] dark:bg-[#0f2a1d]">
+                      <Check size={9} strokeWidth={3.5} className="text-[#16754b] dark:text-[#4ade80]" aria-hidden="true" />
                     </span>
                     {check}
                   </li>
@@ -155,14 +155,14 @@ export function Features() {
                 <span className="grid size-12 place-items-center rounded-xl bg-[#30245c] text-[#b9aaff] shadow-[0_10px_26px_-8px_rgba(48,36,92,0.6)]">
                   <Lock size={20} aria-hidden="true" />
                 </span>
-                <div className="h-8 w-px bg-[#e3e8ef]" aria-hidden="true" />
-                <div className="flex items-center gap-1.5 rounded-lg border border-[#e3e8ef] bg-[#f7f9fc] px-3 py-2">
+                <div className="h-8 w-px bg-[#e3e8ef] dark:bg-[#e2e8f0]/20" aria-hidden="true" />
+                <div className="flex items-center gap-1.5 rounded-lg border border-[#e3e8ef] dark:border-[#e2e8f0]/20 bg-[#f7f9fc] dark:bg-[#1e293b] px-3 py-2">
                   <span className="size-2 rounded-full bg-[#2fbf75]" aria-hidden="true" />
-                  <span className="text-[11px] font-medium text-[#58667a]">100% on-device</span>
+                  <span className="text-[11px] font-medium text-[#58667a] dark:text-[#cbd5e1]">100% on-device</span>
                 </div>
               </div>
-              <h3 className="relative mt-5 text-[16px] font-semibold text-[#26364a]">Private by physics</h3>
-              <p className="relative mt-1.5 text-[13px] leading-relaxed text-[#65748b]">
+              <h3 className="relative mt-5 text-[16px] font-semibold text-[#26364a] dark:text-[#f8fafc]">Private by physics</h3>
+              <p className="relative mt-1.5 text-[13px] leading-relaxed text-[#65748b] dark:text-[#94a3b8]">
                 UPI IDs, names, amounts — everything is generated inside your browser. There is no server to send it to,
                 so it never leaves your device.
               </p>
@@ -185,7 +185,7 @@ export function Features() {
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: 0.2 + i * 0.07, type: "spring", stiffness: 300, damping: 18 }}
-                    className="grid size-10 place-items-center rounded-full border-2 border-white bg-white shadow-sm"
+                    className="grid size-10 place-items-center rounded-full border-2 border-white dark:border-[#e2e8f0]/30 bg-white dark:bg-[#1e293b] shadow-sm"
                   >
                     <Icon className="size-6" aria-label={name} />
                   </motion.span>
@@ -201,8 +201,8 @@ export function Features() {
                   +4
                 </motion.span>
               </div>
-              <h3 className="relative mt-5 text-[16px] font-semibold text-[#26364a]">Every UPI app scans it</h3>
-              <p className="relative mt-1.5 text-[13px] leading-relaxed text-[#65748b]">
+              <h3 className="relative mt-5 text-[16px] font-semibold text-[#26364a] dark:text-[#f8fafc]">Every UPI app scans it</h3>
+              <p className="relative mt-1.5 text-[13px] leading-relaxed text-[#65748b] dark:text-[#94a3b8]">
                 Standard UPI deep links — if an app can pay, it can pay your QR.
               </p>
             </div>
@@ -224,15 +224,15 @@ export function Features() {
                 ].map(({ icon: Icon, label }) => (
                   <span
                     key={label}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#e3e8ef] bg-white px-2.5 py-2 text-[11px] font-medium text-[#58667a] shadow-[0_1px_2px_rgba(36,54,75,0.05)]"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#e3e8ef] dark:border-[#e2e8f0]/20 bg-white dark:bg-[#1e293b] px-2.5 py-2 text-[11px] font-medium text-[#58667a] dark:text-[#cbd5e1] shadow-[0_1px_2px_rgba(36,54,75,0.05)]"
                   >
-                    <Icon size={13} className="text-[#0092c0]" aria-hidden="true" />
+                    <Icon size={13} className="text-[#0092c0] dark:text-[#00baf2]" aria-hidden="true" />
                     {label}
                   </span>
                 ))}
               </div>
-              <h3 className="relative mt-5 text-[16px] font-semibold text-[#26364a]">Share anywhere</h3>
-              <p className="relative mt-1.5 text-[13px] leading-relaxed text-[#65748b]">
+              <h3 className="relative mt-5 text-[16px] font-semibold text-[#26364a] dark:text-[#f8fafc]">Share anywhere</h3>
+              <p className="relative mt-1.5 text-[13px] leading-relaxed text-[#65748b] dark:text-[#94a3b8]">
                 Download PNGs, print sheets for your shop, or keep them in your gallery.
               </p>
             </div>
@@ -241,18 +241,18 @@ export function Features() {
 
         {/* Bottom assurance strip */}
         <Reveal delay={0.15}>
-          <div className="mt-8 flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[#c9cede] bg-white/60 px-6 py-5 text-center sm:flex-row sm:gap-8">
-            <span className="flex items-center gap-2 text-[13px] font-medium text-[#58667a]">
+          <div className="mt-8 flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed dark:border-[#e2e8f0]/20 border-[#c9cede] bg-white/60 dark:bg-[#1e293b]/60 px-6 py-5 text-center sm:flex-row sm:gap-8">
+            <span className="flex items-center gap-2 text-[13px] font-medium text-[#58667a] dark:text-[#94a3b8]">
               <ScanLine size={16} className="text-[#635bff]" aria-hidden="true" />
               Standard UPI deep links
             </span>
-            <span className="hidden h-4 w-px bg-[#d5dce6] sm:block" aria-hidden="true" />
-            <span className="flex items-center gap-2 text-[13px] font-medium text-[#58667a]">
+            <span className="hidden h-4 w-px bg-[#d5dce6] dark:bg-[#e2e8f0]/30 sm:block" aria-hidden="true" />
+            <span className="flex items-center gap-2 text-[13px] font-medium text-[#58667a] dark:text-[#94a3b8]">
               <Smartphone size={16} className="text-[#635bff]" aria-hidden="true" />
               Works on any phone, any browser
             </span>
-            <span className="hidden h-4 w-px bg-[#d5dce6] sm:block" aria-hidden="true" />
-            <span className="flex items-center gap-2 text-[13px] font-medium text-[#58667a]">
+            <span className="hidden h-4 w-px bg-[#d5dce6] dark:bg-[#e2e8f0]/30 sm:block" aria-hidden="true" />
+            <span className="flex items-center gap-2 text-[13px] font-medium text-[#58667a] dark:text-[#94a3b8]">
               <QrGlyph size={16} className="text-[#635bff]" />
               No app install needed
             </span>

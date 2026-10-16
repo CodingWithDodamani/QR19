@@ -30,16 +30,16 @@ export function Testimonials() {
         <div className="mt-14 grid grid-cols-1 gap-5 md:grid-cols-3">
           {[1, 2, 3].map((slot, i) => (
             <Reveal key={slot} delay={i * 0.08}>
-              <figure className="flex h-full flex-col items-center rounded-2xl border border-dashed border-[#c9cede] bg-white/60 px-6 py-8 text-center">
-                <span className="flex gap-1 text-[#e5e7eb]" aria-label="Awaiting first reviews">
+              <figure className="flex h-full flex-col items-center rounded-2xl border border-dashed dark:border-[#e2e8f0]/20 border-[#c9cede] bg-white/60 dark:bg-[#1e293b]/60 px-6 py-8 text-center">
+                <span className="flex gap-1 text-[#e5e7eb] dark:text-[#94a3b8]" aria-label="Awaiting first reviews">
                   {Array.from({ length: 5 }, (_, s) => (
                     <Star key={s} size={15} aria-hidden="true" fill="currentColor" strokeWidth={0} />
                   ))}
                 </span>
-                <blockquote className="mt-4 text-[14px] font-medium leading-relaxed text-[#65748b]">
+                <blockquote className="mt-4 text-[14px] font-medium leading-relaxed text-[#65748b] dark:text-[#94a3b8]">
                   Your story here — how did sequential collection change your counter rush?
                 </blockquote>
-                <figcaption className="mt-3 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#8b96a8]">
+                <figcaption className="mt-3 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#8b96a8] dark:text-[#94a3b8]">
                   Shop {slot} · Your town
                 </figcaption>
               </figure>
@@ -49,7 +49,7 @@ export function Testimonials() {
         <Reveal delay={0.1} className="mt-8 text-center">
           <a
             href="/app"
-            className="inline-flex min-h-[48px] items-center gap-2 rounded-full border border-[#121a26]/15 bg-white px-6 text-[14px] font-semibold text-[#121a26] transition-all hover:-translate-y-0.5"
+            className="inline-flex min-h-[48px] items-center gap-2 rounded-full border border-[#121a26]/15 dark:border-[#e2e8f0]/20 bg-white dark:bg-[#1e293b] px-6 text-[14px] font-semibold text-[#121a26] dark:text-[#f8fafc] transition-all hover:-translate-y-0.5"
           >
             <MessageSquareHeart size={16} aria-hidden="true" />
             Try it today — then tell us your story

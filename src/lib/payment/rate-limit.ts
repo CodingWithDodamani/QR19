@@ -1,10 +1,16 @@
 /**
- * Minimal fixed-window rate limiter (per IP, per bucket) kept in local
- * memory — consistent with this app's no-extra-middleware convention.
+ * Fixed-window rate limiter (per IP, per bucket).
  *
- * Good enough for a single instance; if scaled out, move to Redis. Limits
- * are intentionally generous so normal staff flows never hit them.
+ * - `REDIS_URL` set: counters live in Redis (atomic INCR + PEXPIRE via a Lua
+ *   script), so limits are shared across horizontally scaled instances.
+ * - `REDIS_URL` unset — local dev / single instance — or Redis unreachable:
+ *   falls back to the original in-memory limiter (per-instance limits), the
+ *   behavior this app has always had.
+ *
+ * Limits are intentionally generous so normal staff flows never hit them.
  */
+
+import { getRedis } from "./redis";
 
 interface WindowState {
   count: number;
@@ -50,6 +56,12 @@ export const RATE_LIMITS = {
   pspQrImage: { limit: 120, windowMs: 60_000 },
   pspFraudAlerts: { limit: 60, windowMs: 60_000 },
   webhookTest: { limit: 6, windowMs: 60_000 },
+  /* WhatsApp alerting: operator-triggered test send (POST) + config status
+   * (GET). Tight — a live test sends real Meta messages that cost money. */
+  whatsappTest: { limit: 5, windowMs: 60_000 },
+  /* WhatsApp recipients added from the console (GET list / POST add /
+   * DELETE one). Reads refresh alongside status; mutations are ADMIN-gated. */
+  whatsappRecipients: { limit: 30, windowMs: 60_000 },
   /* Fraud Shield: the collection screen polls security state (alerts +
    * guarantees) and merchants can force a provider re-check of the current
    * QR ("customer claims paid, screen still pending"). */
@@ -72,11 +84,11 @@ function clientKey(request: Request, bucket: string): string {
   return `${bucket}:${ip}`;
 }
 
-export function rateLimit(
+export async function rateLimit(
   request: Request,
   bucket: keyof typeof RATE_LIMITS
-): RateLimitResult {
-  return applyLimit(clientKey(request, bucket), RATE_LIMITS[bucket]);
+): Promise<RateLimitResult> {
+  return applyDistributed(clientKey(request, bucket), RATE_LIMITS[bucket]);
 }
 
 /**
@@ -84,11 +96,64 @@ export function rateLimit(
  * recipient-lookup endpoints (an IP can carry several sessions; a session is
  * the stronger anti-enumeration key).
  */
-export function rateLimitKeyed(
+export async function rateLimitKeyed(
   bucket: keyof typeof RATE_LIMITS,
   key: string
-): RateLimitResult {
-  return applyLimit(`${bucket}:${key}`, RATE_LIMITS[bucket]);
+): Promise<RateLimitResult> {
+  return applyDistributed(`${bucket}:${key}`, RATE_LIMITS[bucket]);
+}
+
+/** Atomic fixed-window: INCR now, PEXPIRE on first hit — plus a heal for a
+ * key that somehow lost its TTL. Returns `{count, ttlMs}`. */
+const FIXED_WINDOW_LUA = `
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+end
+local ttl = redis.call('PTTL', KEYS[1])
+if ttl < 0 then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+  ttl = tonumber(ARGV[1])
+end
+return {count, ttl}
+`;
+
+/**
+ * Redis-backed window when `REDIS_URL` is set, in-memory otherwise. Any
+ * Redis problem (unreachable, malformed reply) degrades to the in-memory
+ * limiter so endpoints never fail open.
+ */
+async function applyDistributed(key: string, rule: RateLimitRule): Promise<RateLimitResult> {
+  const redis = await getRedis("commands");
+  if (!redis) return applyLimit(key, rule);
+  try {
+    const reply = await redis.eval(FIXED_WINDOW_LUA, {
+      keys: [`qr19:rl:${key}`],
+      arguments: [String(rule.windowMs)],
+    });
+    const parts = Array.isArray(reply) ? reply.map(Number) : [];
+    const count = parts[0];
+    const ttlMs = parts[1];
+    if (!Number.isFinite(count) || !Number.isFinite(ttlMs)) {
+      return applyLimit(key, rule);
+    }
+    if (count > rule.limit) {
+      return {
+        allowed: false,
+        remaining: 0,
+        retryAfterSecs: Math.max(1, Math.ceil(ttlMs / 1000)),
+      };
+    }
+    return {
+      allowed: true,
+      remaining: Math.max(0, rule.limit - count),
+      retryAfterSecs: 0,
+    };
+  } catch {
+    // Redis down — degrade to the in-memory limiter (per-instance limits)
+    // rather than failing open or erroring the request.
+    return applyLimit(key, rule);
+  }
 }
 
 function applyLimit(key: string, rule: RateLimitRule): RateLimitResult {

@@ -10,13 +10,17 @@ import {
   KeyRound,
   Landmark,
   LoaderCircle,
+  MessageCircle,
   PlugZap,
+  Plus,
   RefreshCw,
+  Send,
   ShieldAlert,
   ShieldCheck,
   TriangleAlert,
   Unplug,
   Webhook,
+  X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -102,6 +106,28 @@ const FRAUD_LABEL: Record<string, string> = {
   SIGNATURE_FAIL: "Forged webhook attempt",
 };
 
+/* ---- WhatsApp payment alerts (env-driven, opt-in) ---- */
+interface WhatsAppStatus {
+  mode: "off" | "demo" | "live";
+  configured: boolean;
+  templateName: string;
+  languageCode: string;
+  recipients: string[];
+  reason?: string;
+}
+
+interface WhatsAppTestResult {
+  sent: number;
+  failed: number;
+  message: string;
+}
+
+/** One console-added alert recipient (list entry — masked, removable). */
+interface WhatsAppRecipientEntry {
+  id: string;
+  masked: string;
+}
+
 const MODE_LABEL: Record<Mode, string> = {
   demo: "Demo — no PSP connected",
   live: "Live PSP (env webhook)",
@@ -162,6 +188,14 @@ function timeAgo(iso: string): string {
 export function PspConsole() {
   const [status, setStatus] = useState<PspStatus | null>(null);
   const [authed, setAuthed] = useState<boolean | null>(null);
+  // P0-2: operator token input — stored tab-scoped in sessionStorage, sent as
+  // `Authorization: Bearer` on every operator call below.
+  const [adminTokenInput, setAdminTokenInput] = useState("");
+  const [adminTokenSaved, setAdminTokenSaved] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.sessionStorage.getItem("qr19-admin-token") !== null
+  );
 
   /* setup form (provider-scoped) */
   const [provider, setProvider] = useState<Provider>("phonepe");
@@ -189,6 +223,145 @@ export function PspConsole() {
   const [fraudAuthNeeded, setFraudAuthNeeded] = useState(false);
   const [fraudBusy, setFraudBusy] = useState(false);
 
+  /* WhatsApp payment alerts (env opt-in) */
+  const [waStatus, setWaStatus] = useState<WhatsAppStatus | null>(null);
+  const [waAuthNeeded, setWaAuthNeeded] = useState(false);
+  const [waBusy, setWaBusy] = useState(false);
+  const [waTestResult, setWaTestResult] = useState<string | null>(null);
+  const [waRecipients, setWaRecipients] = useState<WhatsAppRecipientEntry[]>([]);
+  const [waNumber, setWaNumber] = useState("");
+  const [waAddMsg, setWaAddMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  /** P0-2: operator-only — Bearer token when the merchant saved one. */
+  const adminHeaders = useCallback((): Record<string, string> => {
+    const saved =
+      typeof window !== "undefined" ? window.sessionStorage.getItem("qr19-admin-token") : null;
+    return saved ? { Authorization: `Bearer ${saved}` } : {};
+  }, []);
+
+  /** Load the console-added numbers (id + masked) for the WhatsApp card. */
+  const loadWaRecipients = useCallback(async () => {
+    try {
+      const response = await fetch("/api/psp/whatsapp-recipients", {
+        cache: "no-store",
+        headers: adminHeaders(),
+      });
+      if (response.ok) {
+        const data = (await response.json()) as { recipients: WhatsAppRecipientEntry[] };
+        setWaRecipients(data.recipients);
+        setWaAuthNeeded(false);
+      } else if (response.status === 401) {
+        setWaAuthNeeded(true);
+        setWaRecipients([]);
+      }
+    } catch {
+      // transient — keep the previous list
+    }
+  }, [adminHeaders]);
+
+  const refreshWhatsApp = useCallback(async () => {
+    setWaBusy(true);
+    try {
+      const response = await fetch("/api/psp/whatsapp-test", {
+        cache: "no-store",
+        headers: adminHeaders(),
+      });
+      if (response.ok) {
+        setWaStatus((await response.json()) as WhatsAppStatus);
+        setWaAuthNeeded(false);
+        await loadWaRecipients();
+      } else if (response.status === 401) {
+        setWaAuthNeeded(true);
+        setWaStatus(null);
+      }
+    } catch {
+      // transient
+    } finally {
+      setWaBusy(false);
+    }
+  }, [adminHeaders, loadWaRecipients]);
+
+  const sendWhatsAppTest = useCallback(async () => {
+    setWaBusy(true);
+    setWaTestResult(null);
+    try {
+      const response = await fetch("/api/psp/whatsapp-test", {
+        method: "POST",
+        cache: "no-store",
+        headers: adminHeaders(),
+      });
+      const data = (await response.json()) as WhatsAppStatus & Partial<WhatsAppTestResult>;
+      if (response.ok || response.status === 409) {
+        setWaStatus(data);
+        setWaAuthNeeded(false);
+        setWaTestResult(data.message ?? null);
+      } else if (response.status === 401) {
+        setWaAuthNeeded(true);
+      } else {
+        setWaTestResult(data.message ?? "Test alert failed — try again.");
+      }
+    } catch {
+      setWaTestResult("Network error — the alert was not sent.");
+    } finally {
+      setWaBusy(false);
+    }
+  }, [adminHeaders]);
+
+  const addWhatsAppNumber = useCallback(async () => {
+    setWaBusy(true);
+    setWaAddMsg(null);
+    try {
+      const response = await fetch("/api/psp/whatsapp-recipients", {
+        method: "POST",
+        cache: "no-store",
+        headers: { ...adminHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ number: waNumber }),
+      });
+      const data = (await response.json()) as { error?: string };
+      if (response.status === 401) {
+        setWaAuthNeeded(true);
+      } else if (response.ok) {
+        setWaAddMsg({
+          ok: true,
+          text: "Added — this number now receives every payment-received alert.",
+        });
+        setWaNumber("");
+        await refreshWhatsApp();
+      } else {
+        setWaAddMsg({ ok: false, text: data.error ?? "The number could not be added." });
+      }
+    } catch {
+      setWaAddMsg({ ok: false, text: "Network error — the number was not added." });
+    } finally {
+      setWaBusy(false);
+    }
+  }, [adminHeaders, refreshWhatsApp, waNumber]);
+
+  const removeWhatsAppNumber = useCallback(async (entry: WhatsAppRecipientEntry) => {
+    setWaBusy(true);
+    setWaAddMsg(null);
+    try {
+      const response = await fetch(`/api/psp/whatsapp-recipients/${entry.id}`, {
+        method: "DELETE",
+        cache: "no-store",
+        headers: adminHeaders(),
+      });
+      const data = (await response.json()) as { error?: string };
+      if (response.status === 401) {
+        setWaAuthNeeded(true);
+      } else if (response.ok) {
+        setWaAddMsg({ ok: true, text: `Removed ${entry.masked} from payment alerts.` });
+        await refreshWhatsApp();
+      } else {
+        setWaAddMsg({ ok: false, text: data.error ?? "The number could not be removed." });
+      }
+    } catch {
+      setWaAddMsg({ ok: false, text: "Network error — the number was not removed." });
+    } finally {
+      setWaBusy(false);
+    }
+  }, [adminHeaders, refreshWhatsApp]);
+
   const refreshStatus = useCallback(async () => {
     try {
       const response = await fetch("/api/psp/status", { cache: "no-store" });
@@ -201,7 +374,15 @@ export function PspConsole() {
   const refreshEvents = useCallback(async () => {
     setMonitorBusy(true);
     try {
-      const response = await fetch("/api/psp/events", { cache: "no-store" });
+      // P0-2: operator-only feed — Bearer token when the merchant saved one.
+      const saved =
+        typeof window !== "undefined"
+          ? window.sessionStorage.getItem("qr19-admin-token")
+          : null;
+      const response = await fetch("/api/psp/events", {
+        cache: "no-store",
+        headers: saved ? { Authorization: `Bearer ${saved}` } : undefined,
+      });
       if (response.ok) {
         const data = (await response.json()) as { items: EventItem[] };
         setEvents(data.items);
@@ -220,7 +401,15 @@ export function PspConsole() {
   const refreshFraud = useCallback(async () => {
     setFraudBusy(true);
     try {
-      const response = await fetch("/api/psp/fraud-alerts", { cache: "no-store" });
+      // P0-2: operator-only feed — Bearer token when the merchant saved one.
+      const saved =
+        typeof window !== "undefined"
+          ? window.sessionStorage.getItem("qr19-admin-token")
+          : null;
+      const response = await fetch("/api/psp/fraud-alerts", {
+        cache: "no-store",
+        headers: saved ? { Authorization: `Bearer ${saved}` } : undefined,
+      });
       if (response.ok) {
         const data = (await response.json()) as { alerts: FraudAlertItem[] };
         setFraudAlerts(data.alerts);
@@ -252,6 +441,13 @@ export function PspConsole() {
     const timer = window.setInterval(() => void refreshFraud(), 15_000);
     return () => window.clearInterval(timer);
   }, [authed, refreshFraud]);
+
+  // WhatsApp alert status: read once when signed in (it only changes when the
+  // operator edits env + restarts, so no polling — a Refresh button covers it).
+  useEffect(() => {
+    if (authed !== true) return;
+    void refreshWhatsApp();
+  }, [authed, refreshWhatsApp]);
 
   const connected =
     status?.mode === "razorpay-test" ||
@@ -309,9 +505,16 @@ export function PspConsole() {
       webhookSecret: provider === "razorpay" ? webhookSecret : "",
     };
     try {
+      const saved =
+        typeof window !== "undefined"
+          ? window.sessionStorage.getItem("qr19-admin-token")
+          : null;
+      const authHeader: Record<string, string> = saved
+        ? { Authorization: `Bearer ${saved}` }
+        : {};
       let response = await fetch("/api/psp/configure", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeader },
         body: JSON.stringify(payload),
       });
       // The console is merchant-only: if the visitor is not signed in yet,
@@ -326,7 +529,7 @@ export function PspConsole() {
           setAuthed(true);
           response = await fetch("/api/psp/configure", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...authHeader },
             body: JSON.stringify(payload),
           });
         }
@@ -337,7 +540,10 @@ export function PspConsole() {
       };
       if (response.status === 401) {
         setAuthed(false);
-        setSaveMsg({ ok: false, text: "Sign in first, then save your credentials." });
+        setSaveMsg({
+          ok: false,
+          text: "Operator sign-in required — paste your ADMIN_TOKEN below, then save again.",
+        });
         return;
       }
       if (!response.ok) {
@@ -390,7 +596,15 @@ export function PspConsole() {
     }
     setUnplugging(false);
     try {
-      await fetch("/api/psp/configure", { method: "DELETE" });
+      // P0-2: operator-only — Bearer token when the merchant saved one.
+      const saved =
+        typeof window !== "undefined"
+          ? window.sessionStorage.getItem("qr19-admin-token")
+          : null;
+      await fetch("/api/psp/configure", {
+        method: "DELETE",
+        headers: saved ? { Authorization: `Bearer ${saved}` } : undefined,
+      });
       setEvents(null);
       await refreshStatus();
     } catch {
@@ -489,6 +703,87 @@ export function PspConsole() {
                       <Landmark size={12} aria-hidden="true" /> env {activeEnvLabel}
                     </span>
                   )}
+                </div>
+
+                {/* ---------- operator sign-in (P0-2) ---------- */}
+                <div className="pc-webhook" style={{ marginTop: 12 }}>
+                  <div className="pc-webhook-label">
+                    Operator sign-in — ADMIN_TOKEN (required in production)
+                  </div>
+                  <div className="pc-webhook-row">
+                    <Input
+                      type="password"
+                      autoComplete="off"
+                      placeholder={adminTokenSaved ? "Token saved for this tab — paste a new one to replace" : "Paste ADMIN_TOKEN…"}
+                      value={adminTokenInput}
+                      onChange={(e) => setAdminTokenInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          const value = adminTokenInput.trim();
+                          if (!value) return;
+                          try {
+                            window.sessionStorage.setItem("qr19-admin-token", value);
+                          } catch {
+                            // ignore
+                          }
+                          setAdminTokenInput("");
+                          setAdminTokenSaved(true);
+                          setSaveMsg({ ok: true, text: "Operator token saved for this tab. Retrying…" });
+                          void refreshFraud();
+                          void refreshStatus();
+                        }
+                      }}
+                      aria-label="Operator admin token"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={!adminTokenInput.trim()}
+                      onClick={() => {
+                        const value = adminTokenInput.trim();
+                        if (!value) return;
+                        try {
+                          window.sessionStorage.setItem("qr19-admin-token", value);
+                        } catch {
+                          // ignore
+                        }
+                        setAdminTokenInput("");
+                        setAdminTokenSaved(true);
+                        setSaveMsg({ ok: true, text: "Operator token saved for this tab. Retrying…" });
+                        void refreshFraud();
+                        void refreshStatus();
+                      }}
+                    >
+                      <KeyRound size={14} aria-hidden="true" />
+                      Save token
+                    </Button>
+                    {adminTokenSaved && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="pc-ghost-sm"
+                        onClick={() => {
+                          try {
+                            window.sessionStorage.removeItem("qr19-admin-token");
+                          } catch {
+                            // ignore
+                          }
+                          setAdminTokenSaved(false);
+                          setSaveMsg({ ok: false, text: "Operator token cleared." });
+                        }}
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  <p className="pc-webhook-note">
+                    {adminTokenSaved
+                      ? "Token kept tab-scoped (sessionStorage) and sent as Authorization: Bearer. Never stored in a cookie."
+                      : "Local dev still accepts the demo session; production requires this token (server refuses to boot without ADMIN_TOKEN). Generate with: openssl rand -hex 32"}
+                  </p>
                 </div>
 
                 {status.mode === "demo" && (
@@ -924,6 +1219,175 @@ export function PspConsole() {
                         </li>
                       ))}
                     </ul>
+                  )}
+                </div>
+
+                {/* ---------- WhatsApp payment alerts ---------- */}
+                <div className="pc-monitor pc-fraud">
+                  <div className="pc-monitor-head">
+                    <strong>
+                      <MessageCircle size={13} aria-hidden="true" /> WhatsApp payment alerts
+                    </strong>
+                    <span>opt-in via WHATSAPP_ALERTS env · sent the moment a payment is verified</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void refreshWhatsApp()}
+                      disabled={waBusy}
+                      aria-label="Refresh WhatsApp alert status"
+                    >
+                      <RefreshCw size={13} className={waBusy ? "animate-spin" : ""} aria-hidden="true" />
+                      Refresh
+                    </Button>
+                  </div>
+                  {authed === false || waAuthNeeded ? (
+                    <div className="pc-monitor-gate">
+                      <p>
+                        Alert configuration is operator-only. It shows which recipients get paid
+                        alerts and whether sending is live — never the access token.
+                      </p>
+                      <Button type="button" size="sm" onClick={handleSignIn}>
+                        Sign in as merchant
+                      </Button>
+                    </div>
+                  ) : waStatus === null ? (
+                    <p className="pc-monitor-empty" role="status">Loading alert status…</p>
+                  ) : (
+                    <>
+                      <ul className="pc-monitor-list" aria-live="polite">
+                        <li className="pc-fraud-row pc-fraud-low">
+                          <span className="pc-fraud-type">
+                            <MessageCircle size={12} aria-hidden="true" /> Sending
+                          </span>
+                          <span className="pc-fraud-msg">
+                            {waStatus.mode === "off" && "Off — no WhatsApp alerts are sent (default)."}
+                            {waStatus.mode === "demo" &&
+                              `Demo — messages are logged to the server console, never sent to the network.`}
+                            {waStatus.mode === "live" &&
+                              (waStatus.configured
+                                ? "Live — real messages go to the Meta WhatsApp Cloud API."
+                                : `Live selected but not sending: ${waStatus.reason ?? "misconfigured"}.`)}
+                          </span>
+                        </li>
+                        <li className="pc-fraud-row pc-fraud-low">
+                          <span className="pc-fraud-type">
+                            <Send size={12} aria-hidden="true" /> Recipients
+                          </span>
+                          <span className="pc-fraud-msg">
+                            {waStatus.recipients.length > 0
+                              ? waStatus.recipients.join(", ")
+                              : "None configured."}
+                          </span>
+                        </li>
+                        <li className="pc-fraud-row pc-fraud-low">
+                          <span className="pc-fraud-type">
+                            <ShieldCheck size={12} aria-hidden="true" /> Template
+                          </span>
+                          <span className="pc-fraud-msg">
+                            {waStatus.templateName} · {waStatus.languageCode} · params: amount, seq,
+                            total, provider, providerRef
+                          </span>
+                        </li>
+                      </ul>
+                      {waTestResult !== null && (
+                        <p className="pc-monitor-empty" role="status">{waTestResult}</p>
+                      )}
+                      {/* ---------- console-added alert numbers ---------- */}
+                      <div className="mt-3">
+                        <div className="pc-webhook-label">Alert numbers added here</div>
+                        {waRecipients.length > 0 ? (
+                          <ul className="pc-monitor-list" aria-live="polite">
+                            {waRecipients.map((entry) => (
+                              <li key={entry.id} className="pc-fraud-row pc-fraud-low">
+                                <span className="pc-fraud-msg">
+                                  <MessageCircle size={12} aria-hidden="true" /> {entry.masked}
+                                </span>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => void removeWhatsAppNumber(entry)}
+                                  disabled={waBusy}
+                                  aria-label={`Remove ${entry.masked} from payment alerts`}
+                                >
+                                  <X size={12} aria-hidden="true" />
+                                  Remove
+                                </Button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="pc-monitor-empty" role="note">
+                            No numbers added yet — recipients from WHATSAPP_RECIPIENT still apply.
+                          </p>
+                        )}
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <Input
+                            type="tel"
+                            inputMode="tel"
+                            autoComplete="off"
+                            placeholder="e.g. 919876543210"
+                            aria-label="WhatsApp number in full international format"
+                            value={waNumber}
+                            onChange={(event) => setWaNumber(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" && waNumber.trim() && !waBusy) {
+                                event.preventDefault();
+                                void addWhatsAppNumber();
+                              }
+                            }}
+                            disabled={waBusy}
+                            className="h-9 w-[210px]"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => void addWhatsAppNumber()}
+                            disabled={waBusy || !waNumber.trim()}
+                            aria-label="Add WhatsApp number"
+                          >
+                            <Plus size={13} aria-hidden="true" />
+                            Add number
+                          </Button>
+                        </div>
+                        {waAddMsg !== null && (
+                          <p
+                            className="pc-monitor-empty"
+                            role={waAddMsg.ok ? "status" : "alert"}
+                          >
+                            {waAddMsg.text}
+                          </p>
+                        )}
+                        <p className="pc-monitor-empty" role="note">
+                          Full international format, digits only (8-15, e.g. 919876543210). Added
+                          numbers receive alerts together with <code>WHATSAPP_RECIPIENT</code>; the
+                          off/demo/live switch still comes from <code>WHATSAPP_ALERTS</code>.
+                        </p>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => void sendWhatsAppTest()}
+                          disabled={waBusy || waStatus.mode === "off"}
+                          aria-label="Send test alert"
+                        >
+                          {waBusy ? (
+                            <LoaderCircle size={13} className="animate-spin" aria-hidden="true" />
+                          ) : (
+                            <Send size={13} aria-hidden="true" />
+                          )}
+                          Send test alert
+                        </Button>
+                        {waStatus.mode === "off" && (
+                          <p className="pc-monitor-empty" role="note">
+                            Set <code>WHATSAPP_ALERTS=demo</code> (or <code>live</code> + creds) in
+                            your environment and restart to enable.
+                          </p>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
 

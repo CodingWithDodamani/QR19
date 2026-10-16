@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
  * set of identical orders).
  */
 export async function POST(request: Request) {
-  const limit = rateLimit(request, "queueCreate");
+  const limit = await rateLimit(request, "queueCreate");
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Too many queue creations. Try again shortly." },

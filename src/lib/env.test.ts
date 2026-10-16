@@ -9,10 +9,11 @@ import {
 const LONG = "a".repeat(MIN_PROD_SECRET_LENGTH);
 
 describe("validateProductionEnv", () => {
-  it("reports both keys when missing", () => {
+  it("reports all keys when missing", () => {
     expect(validateProductionEnv({})).toEqual([
       { key: "SESSION_SECRET", problem: "missing", minLength: MIN_PROD_SECRET_LENGTH },
       { key: "PSP_ENCRYPTION_KEY", problem: "missing", minLength: MIN_PROD_SECRET_LENGTH },
+      { key: "ADMIN_TOKEN", problem: "missing", minLength: MIN_PROD_SECRET_LENGTH },
     ]);
   });
 
@@ -20,16 +21,18 @@ describe("validateProductionEnv", () => {
     const issues = validateProductionEnv({
       SESSION_SECRET: "sixteen-chars-xx",
       PSP_ENCRYPTION_KEY: "x".repeat(31),
+      ADMIN_TOKEN: "short",
     });
     expect(issues).toEqual([
       { key: "SESSION_SECRET", problem: "too_short", minLength: MIN_PROD_SECRET_LENGTH },
       { key: "PSP_ENCRYPTION_KEY", problem: "too_short", minLength: MIN_PROD_SECRET_LENGTH },
+      { key: "ADMIN_TOKEN", problem: "too_short", minLength: MIN_PROD_SECRET_LENGTH },
     ]);
   });
 
   it("treats whitespace-only as missing and trims before measuring", () => {
     expect(
-      validateProductionEnv({ SESSION_SECRET: "   ", PSP_ENCRYPTION_KEY: LONG })
+      validateProductionEnv({ SESSION_SECRET: "   ", PSP_ENCRYPTION_KEY: LONG, ADMIN_TOKEN: LONG })
     ).toEqual([
       { key: "SESSION_SECRET", problem: "missing", minLength: MIN_PROD_SECRET_LENGTH },
     ]);
@@ -37,7 +40,7 @@ describe("validateProductionEnv", () => {
 
   it("accepts exactly 32-char secrets", () => {
     expect(
-      validateProductionEnv({ SESSION_SECRET: LONG, PSP_ENCRYPTION_KEY: LONG })
+      validateProductionEnv({ SESSION_SECRET: LONG, PSP_ENCRYPTION_KEY: LONG, ADMIN_TOKEN: LONG })
     ).toEqual([]);
   });
 });
@@ -52,17 +55,27 @@ describe("assertProductionEnv", () => {
   it("throws in production when a secret is short", () => {
     expect(() =>
       assertProductionEnv(
-        { SESSION_SECRET: LONG, PSP_ENCRYPTION_KEY: "short" },
+        { SESSION_SECRET: LONG, PSP_ENCRYPTION_KEY: "short", ADMIN_TOKEN: LONG },
         "production",
         () => undefined
       )
     ).toThrow(/PSP_ENCRYPTION_KEY is too short/);
   });
 
-  it("passes in production with strong secrets", () => {
+  it("throws in production when ADMIN_TOKEN is missing", () => {
     expect(() =>
       assertProductionEnv(
         { SESSION_SECRET: LONG, PSP_ENCRYPTION_KEY: LONG },
+        "production",
+        () => undefined
+      )
+    ).toThrow(/ADMIN_TOKEN is not set/);
+  });
+
+  it("passes in production with strong secrets", () => {
+    expect(() =>
+      assertProductionEnv(
+        { SESSION_SECRET: LONG, PSP_ENCRYPTION_KEY: LONG, ADMIN_TOKEN: LONG },
         "production",
         () => undefined
       )

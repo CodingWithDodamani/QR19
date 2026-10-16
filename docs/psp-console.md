@@ -103,31 +103,72 @@ In Razorpay modes the original raw UPI deep link (`qrPayload`) is
 deliberately **not displayed** — paying it would bypass the PSP and could
 never be verified.
 
+## 5b. WhatsApp payment alerts (opt-in)
+
+The instant a queue order transitions to `paid` (server-verified provider
+event only — demo simulator uses the same path), the app fire-and-forgets a
+Meta WhatsApp Cloud API template message to every configured recipient. The
+send is deliberately detached from the money path: a failure is logged and
+never affects the queue.
+
+- **Switch:** `WHATSAPP_ALERTS=off` (default, unset = off) | `demo`
+  (logs what WOULD send, never touches the network) | `live` (real sends via
+  `https://graph.facebook.com/v21.0`, fails CLOSED when creds/recipients are
+  missing). See `.env.example` for the full block.
+- **Template:** `payment_received` (or `WHATSAPP_TEMPLATE_NAME`) with exactly
+  5 positional body params in order — `{{1}}` amount (₹), `{{2}}` seq,
+  `{{3}}` totalOrders, `{{4}}` provider, `{{5}}` providerRef (or "—"). Create
+  and approve it in Meta Business Suite before going live.
+- **Recipients = env ∪ console:** `WHATSAPP_RECIPIENT` (comma-separated E.164
+  without "+", e.g. `919876543210,919123456789`) plus numbers typed into the
+  PSP console card "WhatsApp payment alerts → Alert numbers added here"
+  (stored in `WhatsappRecipient`, max 20, normalized to 8-15 digits, deduped
+  env-first). Both lists receive the same template, including the test alert.
+- **Console:** sign in as merchant (ADMIN_TOKEN), add/remove numbers
+  (full numbers are never returned — only masked like `91•••••3210`), then
+  "Send test alert" to verify end-to-end. Demo mode logs; off/misconfigured
+  returns 409 with a clear reason.
+
 ## 6. API reference (new)
 
 | Endpoint | Method | Auth | Purpose |
 | --- | --- | --- | --- |
 | `/api/psp/status` | GET | public (no secrets) | Mode, masked key, webhook URL, last test result |
-| `/api/psp/configure` | POST/DELETE | session | Save/rotate (encrypted + instant test) / wipe credentials |
-| `/api/psp/test` | POST | session | Re-run connection test against Razorpay |
-| `/api/psp/events` | GET | session | Monitor ledger: webhook/poll/demo/synthetic events + provisioning audit |
+| `/api/psp/configure` | POST/DELETE | ADMIN_TOKEN bearer (demo session accepted in dev only) | Save/rotate (encrypted + instant test) / wipe credentials |
+| `/api/psp/events` | GET | ADMIN_TOKEN bearer (demo session accepted in dev only) | Monitor ledger: webhook/poll/demo/synthetic events + provisioning audit |
+| `/api/psp/fraud-alerts` | GET | ADMIN_TOKEN bearer (demo session accepted in dev only) | Fraud Shield feed + severity summary |
+
+Operator auth (P0-2): every operator endpoint requires
+`Authorization: Bearer <ADMIN_TOKEN>` (timing-safe compare). In local dev
+the demo signed-session cookie is still accepted for convenience; in
+production with `ADMIN_TOKEN` set, the session alone returns 401. The
+console UI has an operator sign-in box — the token is kept tab-scoped in
+`sessionStorage` and never in a cookie. `psp/status` stays public (masked
+key id only). Staff skip/cancel overrides require the same token.
 | `/api/psp/qr-image/:qrId` | GET | public, rate-limited | Proxy for a provisioned Razorpay QR image (never an open proxy) |
+| `/api/psp/whatsapp-test` | GET / POST | ADMIN_TOKEN bearer (demo session accepted in dev only) | Masked alert status (GET) / send `payment_received` test to all recipients (POST; demo logs, off/misconfigured → 409) |
+| `/api/psp/whatsapp-recipients` | GET / POST | ADMIN_TOKEN bearer (demo session accepted in dev only) | List console-added numbers masked (GET) / add one number `{ "number" }` 8-15 digits, max 20, deduped vs env + DB (POST → 201/400/409) |
+| `/api/psp/whatsapp-recipients/:id` | DELETE | ADMIN_TOKEN bearer (demo session accepted in dev only) | Remove one console-added number (env numbers can't be removed here) |
 | `/api/webhooks/razorpay` | POST | HMAC signature | Real Razorpay webhook receiver |
 | `/api/payment-queues/:id/webhook-test` | POST | — (rate-limited) | Signed synthetic delivery through the REAL webhook path (test mode only) |
 
 Environment: `PSP_ENCRYPTION_KEY` (set before storing **live** keys),
 `APP_ORIGIN` (optional, for webhook self-delivery), existing
-`SESSION_SECRET` (console session gate). All three must be ≥32 chars in
-production — `src/instrumentation.ts` refuses to boot otherwise
-(fail closed); development warns and uses clearly-labeled demo fallbacks.
+`SESSION_SECRET` (console session gate), plus `ADMIN_TOKEN` (operator gate
+for all PSP mutations + monitors + staff overrides). All four must be ≥32
+chars in production — `src/instrumentation.ts` refuses to boot otherwise
+(fail closed); development warns and uses clearly-labeled demo fallbacks
+(demo session accepted without the token locally).
 
 ## 7. Security notes
 
 - Key secret + webhook secret: AES-256-GCM (scrypt-derived key), DB-stored,
   never returned by any endpoint (masked preview only), wipeable instantly.
-- Console mutations are session-gated (same signed-cookie session as the
-  recipient finder — **demo-grade auth**; put the console behind real admin
-  auth in production).
+- Console mutations + monitors + staff skip/cancel are ADMIN_TOKEN-gated
+  (P0-2: `Authorization: Bearer`, timing-safe; demo session accepted in dev
+  only — production with ADMIN_TOKEN set returns 401 on session alone).
+  Put the deployment behind HTTPS and rotate the token with
+  `openssl rand -hex 32` if ever exposed.
 - Webhooks fail closed: no secret configured → 403; bad signature → 401;
   unsigned processing is impossible.
 - The webhook-test endpoint is **hard-disabled in live mode**; its

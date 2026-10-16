@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
-import { sessionFromRequest, unauthorized } from "@/lib/payment/psp-auth";
+import { isAdminRequest, unauthorized } from "@/lib/payment/psp-auth";
 import { rateLimit } from "@/lib/payment/rate-limit";
 import { resolvePaymentMode } from "@/lib/payment/psp-settings";
 
@@ -34,9 +34,10 @@ interface EventItem {
 }
 
 export async function GET(request: Request) {
-  if (!sessionFromRequest(request)) return unauthorized();
+  // P0-2: operator-only — ADMIN_TOKEN bearer in prod, demo session locally.
+  if (!isAdminRequest(request)) return unauthorized();
 
-  const limit = rateLimit(request, "pspEvents");
+  const limit = await rateLimit(request, "pspEvents");
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Too many monitor refreshes." },

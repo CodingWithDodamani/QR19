@@ -20,7 +20,7 @@ const INCLUDED = [
 
 export function PricingStrip() {
   return (
-    <section id="pricing" className="scroll-mt-24 bg-white py-20 lg:py-28" aria-labelledby="pricing-title">
+    <section id="pricing" className="scroll-mt-24 bg-white dark:bg-[#0f172a] py-20 lg:py-28" aria-labelledby="pricing-title">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <SectionHeading
           id="pricing-title"
@@ -33,7 +33,7 @@ export function PricingStrip() {
           subtitle="There is one plan. It is free, and there is nothing to upgrade to."
         />
         <Reveal delay={0.1} className="mx-auto mt-14 max-w-xl">
-          <div className="relative overflow-hidden rounded-3xl border border-[#121a26]/10 bg-[#121a26] p-8 text-center text-white shadow-[0_30px_70px_-24px_rgba(18,26,38,0.5)] sm:p-10">
+          <div className="relative overflow-hidden rounded-3xl border border-[#121a26]/10 dark:border-[#e2e8f0]/15 bg-[#121a26] dark:bg-[#1e293b] p-8 text-center text-white shadow-[0_30px_70px_-24px_rgba(18,26,38,0.5)] sm:p-10">
             <span aria-hidden="true" className="monks-num monks-num-light">
               ₹0
             </span>

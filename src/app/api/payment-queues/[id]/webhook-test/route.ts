@@ -109,7 +109,7 @@ export async function POST(
     );
   }
 
-  const limit = rateLimit(request, "webhookTest");
+  const limit = await rateLimit(request, "webhookTest");
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Too many webhook tests. Try again shortly." },

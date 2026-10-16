@@ -14,6 +14,7 @@ import {
 import { getPspCredentials, resolvePaymentMode } from "./psp-settings";
 import { phonepeCheckStatus, phonepeInitiatePay, PhonePeApiError } from "./phonepe";
 import { RZP_MAX_QR_TTL_SECS, RazorpayApiError, razorpayCreateQr, razorpayFetchQrPayments } from "./razorpay";
+import { notifyPaid, resolveWhatsAppConfig } from "./whatsapp";
 import type {
   Notice,
   OrderDTO,
@@ -678,6 +679,44 @@ export async function processProviderEvent(
     await recomputeQueue(current.queueId);
     await publishState(current.queueId);
     await db.webhookEvent.update({ where: { id: event.eventId }, data: { handled: true, reason: "ok" } });
+
+    // Fire-and-forget WhatsApp alert — deliberately detached from the money
+    // path. `notifyPaid` never throws and a send failure is swallowed + logged
+    // there; awaiting it here would only risk latency, never correctness. It
+    // runs ONLY on the confirmed `paid` transition above (advance.count !== 0),
+    // so duplicate deliveries and overrides can never double-send.
+    void (async () => {
+      try {
+        const [queue, provider, waRows] = await Promise.all([
+          db.paymentQueue.findUnique({ where: { id: current.queueId } }),
+          resolvePaymentMode(),
+          // Console-added alert recipients (PSP console → WhatsApp card) merge
+          // with the env WHATSAPP_RECIPIENT list at send time.
+          db.whatsappRecipient.findMany({
+            orderBy: { createdAt: "asc" },
+            select: { number: true },
+          }),
+        ]);
+        await notifyPaid(
+          {
+            orderId: current.orderId,
+            amountPaise: current.amountPaise,
+            seq: current.seq,
+            totalOrders: queue?.totalCount ?? current.seq,
+            provider,
+            providerRef: event.providerRef ?? undefined,
+          },
+          actor,
+          // Resolved here (not inside notifyPaid) so the DB-added numbers are
+          // included; `null` = alerts off / live-fail-closed → no-op.
+          resolveWhatsAppConfig(waRows.map((row) => row.number))
+        );
+      } catch (error) {
+        // The alert is best-effort; never let it surface into the money path.
+        console.warn(`[whatsapp] alert for ${current.orderId} failed:`, error);
+      }
+    })();
+
     return { handled: true, reason: "ok" };
   }
 

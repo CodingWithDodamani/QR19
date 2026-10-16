@@ -3,6 +3,7 @@
 import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "framer-motion";
 import { ArrowRight, Check, ShieldCheck, Smartphone, Zap } from "lucide-react";
 import type { MouseEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { GradientWave } from "@/components/landing/gradient-wave";
@@ -14,14 +15,69 @@ const EASE = [0.22, 1, 0.36, 1] as const;
  *  shader effect never re-initializes on re-render. */
 const HERO_WAVE_COLORS = ["#4ade80", "#ffffff", "#22c55e", "#f0fdf4", "#4ade80", "#ffffff"];
 
+/**
+ * Animated counter: counts from 0 to `target` when the element enters the viewport.
+ * Respects prefers-reduced-motion (shows final value instantly).
+ */
+function CountUp({ target, formatter, prefersReducedMotion }: { target: number; formatter: (n: number) => string; prefersReducedMotion: boolean }) {
+  const [displayed, setDisplayed] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  const hasAnimated = useRef(false);
+
+  useEffect(() => {
+    if (prefersReducedMotion || hasAnimated.current) return;
+    const el = ref.current;
+    if (!el) return;
+    let cancelled = false;
+    let rafId = 0;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry.isIntersecting) return;
+        hasAnimated.current = true;
+        observer.disconnect();
+        const start = performance.now();
+        const duration = 1.2; // seconds
+        const step = (now: number) => {
+          if (cancelled) return;
+          const elapsed = (now - start) / 1000;
+          const progress = Math.min(elapsed / duration, 1);
+          // ease-out-cubic
+          const eased = 1 - Math.pow(1 - progress, 3);
+          if (progress < 1) {
+            setDisplayed(Math.floor(eased * target));
+            rafId = requestAnimationFrame(step);
+          } else {
+            setDisplayed(target);
+          }
+        };
+        rafId = requestAnimationFrame(step);
+      },
+      { threshold: 0.1, rootMargin: "-10% 0px" },
+    );
+    observer.observe(el);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+      observer.disconnect();
+    };
+  }, [prefersReducedMotion, target]);
+
+  // Reduced-motion users see the final value immediately (no animation state).
+  const value = prefersReducedMotion ? target : displayed;
+  return (
+    <span ref={ref}>{formatter(value)}</span>
+  );
+}
+
 const PROOFS = [
-  { value: "₹1,999", label: "Max per QR" },
-  { value: "Exact ₹", label: "Amount guard" },
-  { value: "Offline", label: "Queue & sync" },
+  { value: 1999, label: "Max per QR", formatter: (n: number) => `₹${n.toLocaleString()}` },
+  { value: 0, label: "Platform fees", formatter: (n: number) => `₹${n.toLocaleString()}` },
+  { value: 100, label: "Orders per batch", formatter: (n: number) => `${n}` },
 ] as const;
 
 export function Hero() {
-  const prefersReducedMotion = useReducedMotion();
+  const prefersReducedMotion = useReducedMotion() === true;
 
   // Subtle mouse parallax for the floating chips (fine pointers only)
   const mx = useMotionValue(0);
@@ -44,7 +100,7 @@ export function Hero() {
     <section
       id="top"
       onMouseMove={handleMouseMove}
-      className="relative overflow-hidden bg-[#4ade80] pb-16 pt-32 sm:pt-36 lg:pb-24"
+      className="relative overflow-hidden bg-[#4ade80] dark:bg-[#166534] pb-16 pt-32 sm:pt-36 lg:pb-24"
     >
       {/* Animated WebGL gradient band (warm fallback color if WebGL is off) */}
       <GradientWave colors={HERO_WAVE_COLORS} isPlaying={!prefersReducedMotion} />
@@ -54,7 +110,7 @@ export function Hero() {
           initial={{ opacity: 0, y: 26 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.08, ease: EASE }}
-          className="text-display-xl font-display mx-auto mt-5 flex w-full max-w-3xl flex-col items-center justify-center text-center font-bold text-[#121a26] lg:max-w-4xl lg:text-[76px] lg:leading-[1.02] lg:tracking-[-0.04em] lg:[text-indent:-0.04em]"
+          className="text-display-xl font-display mx-auto mt-5 flex w-full max-w-3xl flex-col items-center justify-center text-center font-bold text-[#121a26] dark:text-white lg:max-w-4xl lg:text-[76px] lg:leading-[1.02] lg:tracking-[-0.04em] lg:[text-indent:-0.04em]"
         >
           <span className="block w-full text-center">Collect every rupee.</span>
           <span className="block w-full text-center">Pay ₹0 fees.</span>
@@ -64,7 +120,7 @@ export function Hero() {
           initial={{ opacity: 0, y: 26 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.14, ease: EASE }}
-          className="mt-4 text-center text-[15px] font-semibold tracking-tight text-[#121a26] sm:text-base"
+          className="mt-4 text-center text-[15px] font-semibold tracking-tight text-[#121a26] dark:text-[#e2e8f0] sm:text-base"
         >
           Bade amount? Chhote QR codes. Sab auto.
         </motion.p>
@@ -73,7 +129,7 @@ export function Hero() {
           initial={{ opacity: 0, y: 26 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.18, ease: EASE }}
-          className="mx-auto mt-2 max-w-xl text-pretty text-center text-[16px] leading-relaxed text-[#40506a] sm:text-[17px]"
+          className="mx-auto mt-2 max-w-xl text-pretty text-center text-[16px] leading-relaxed text-[#40506a] dark:text-[#94a3b8] sm:text-[17px]"
         >
           Split any bill into UPI QR codes of ₹1,999 or less and collect them one
           verified payment at a time — no setup, no transaction fees, no middlemen.
@@ -89,7 +145,7 @@ export function Hero() {
           <Button
             asChild
             size="lg"
-            className="cta-shimmer group h-12 rounded-full bg-[#121a26] px-7 text-[15px] font-semibold text-white shadow-[0_14px_34px_-10px_rgba(18,26,38,0.55)] transition-all hover:-translate-y-0.5 hover:bg-black hover:text-white hover:shadow-[0_18px_40px_-10px_rgba(18,26,38,0.65)]"
+            className="cta-shimmer group h-12 rounded-full bg-[#121a26] dark:bg-[#e2e8f0] px-7 text-[15px] font-semibold text-white dark:text-[#121a26] shadow-[0_14px_34px_-10px_rgba(18,26,38,0.55)] transition-all hover:-translate-y-0.5 hover:bg-black hover:text-white hover:shadow-[0_18px_40px_-10px_rgba(18,26,38,0.65)] dark:hover:bg-[#cbd5e1]"
           >
             <a href="/app">
               <Smartphone size={17} aria-hidden="true" />
@@ -101,7 +157,7 @@ export function Hero() {
               asChild
               size="lg"
               variant="outline"
-              className="btn-shine group h-12 rounded-full border-[#121a26]/15 bg-white/70 px-7 text-[15px] font-semibold text-[#121a26] backdrop-blur transition-all hover:-translate-y-0.5 hover:border-[#121a26]/30 hover:text-[#121a26]"
+              className="btn-shine group h-12 rounded-full border-[#121a26]/15 dark:border-[#e2e8f0]/20 bg-white/70 dark:bg-[#121a26]/20 px-7 text-[15px] font-semibold text-[#121a26] dark:text-[#e2e8f0] backdrop-blur transition-all hover:-translate-y-0.5 hover:border-[#121a26]/30 hover:text-[#121a26] dark:hover:border-[#e2e8f0]/30 dark:hover:text-[#e2e8f0]"
             >
               <a href="#how-it-works">
                 <Zap size={17} aria-hidden="true" />
@@ -115,7 +171,7 @@ export function Hero() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.32 }}
-          className="mt-4 text-center text-[12.5px] font-medium text-[#40506a]"
+          className="mt-4 text-center text-[12.5px] font-medium text-[#40506a] dark:text-[#94a3b8]"
         >
           Installable PWA for iOS &amp; Android · Works offline
         </motion.p>
@@ -141,14 +197,14 @@ export function Hero() {
             <motion.div
               animate={prefersReducedMotion ? undefined : { y: [0, -12, 0] }}
               transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
-              className="flex items-center gap-2.5 rounded-xl bg-white/95 p-3 pr-4 text-left shadow-[0_18px_44px_-14px_rgba(36,54,75,0.35)] ring-1 ring-[#121a26]/10 backdrop-blur"
+              className="flex items-center gap-2.5 rounded-xl bg-white/95 dark:bg-[#1e293b]/90 p-3 pr-4 text-left shadow-[0_18px_44px_-14px_rgba(36,54,75,0.35)] ring-1 ring-[#121a26]/10 dark:ring-[#e2e8f0]/10 backdrop-blur"
             >
               <span className="anim-ring grid size-9 place-items-center rounded-full bg-[#e5f5ed] text-[#16754b]">
                 <Check size={16} strokeWidth={2.5} aria-hidden="true" />
               </span>
               <div>
-                <div className="text-[12px] font-semibold text-[#121a26]">Payment received</div>
-                <div className="text-[11px] tabular-nums text-[#16754b]">₹1,999.00 · just now</div>
+                <div className="text-[12px] font-semibold text-[#121a26] dark:text-[#f8fafc]">Payment received</div>
+                <div className="text-[11px] tabular-nums text-[#16754b] dark:text-[#4ade80]">₹1,999.00 · just now</div>
               </div>
             </motion.div>
           </motion.div>
@@ -180,13 +236,13 @@ export function Hero() {
             <div
               key={proof.label}
               className={`flex items-center justify-center gap-3 text-center sm:flex-1 sm:flex-col sm:justify-center sm:gap-1 ${
-                i > 0 ? "sm:border-l sm:border-[#121a26]/10" : ""
+                i > 0 ? "sm:border-l sm:border-[#121a26]/10 dark:border-[#e2e8f0]/10" : ""
               }`}
             >
-              <dd className="text-[22px] font-bold tabular-nums tracking-tight text-[#121a26] sm:text-[26px]">
-                {proof.value}
+              <dd className="text-[22px] font-bold tabular-nums tracking-tight text-[#121a26] dark:text-[#f8fafc] sm:text-[26px]">
+                <CountUp target={proof.value} formatter={proof.formatter} prefersReducedMotion={prefersReducedMotion} />
               </dd>
-              <dt className="text-[13px] font-medium text-[#40506a]">{proof.label}</dt>
+              <dt className="text-[13px] font-medium text-[#40506a] dark:text-[#94a3b8]">{proof.label}</dt>
             </div>
           ))}
         </motion.dl>

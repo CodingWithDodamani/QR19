@@ -1,3 +1,5 @@
+import crypto from "crypto";
+
 import { NextResponse } from "next/server";
 
 import {
@@ -7,17 +9,45 @@ import {
 } from "@/lib/upi-lookup/session";
 
 /**
- * Auth gate for PSP-console mutations (configure / test / disconnect /
- * event monitor). Reuses the app's signed-session cookie — the same gate
- * the recipient finder uses — so credentials can only be changed by an
- * authenticated operator.
+ * Admin gate for operator-only endpoints (P0-2):
+ * - PSP console mutations: configure (POST/DELETE)
+ * - PSP monitors: events, fraud-alerts (payment data)
+ * - Staff overrides: order override, queue cancel (skip/cancel)
  *
- * HONEST LABEL: demo-grade auth (documented in upi-lookup/session.ts).
- * A production deployment must put the console behind real merchant
- * admin auth (see docs/psp-console.md).
+ * Two accepted credentials:
+ * 1. `Authorization: Bearer <ADMIN_TOKEN>` — the real production gate.
+ *    Compared timing-safe against the trimmed env value. Required in
+ *    production (boot guard in `src/lib/env.ts` refuses to start without it).
+ * 2. Demo signed-session cookie — local-dev convenience ONLY. Accepted when
+ *    `NODE_ENV !== "production"` OR when no ADMIN_TOKEN is configured (dev).
+ *    In production with ADMIN_TOKEN set, the session alone is NOT enough.
+ *
+ * `psp/status` stays public (masked key id only, no secrets).
  */
 
-export function sessionFromRequest(request: Request): SessionData | null {
+function adminToken(): string {
+  return process.env.ADMIN_TOKEN?.trim() ?? "";
+}
+
+export function adminAuthConfigured(): boolean {
+  return adminToken().length >= 16;
+}
+
+/** Timing-safe bearer check — returns true only on exact ADMIN_TOKEN match. */
+export function isAdminBearer(request: Request): boolean {
+  const token = adminToken();
+  if (token.length < 16) return false;
+  const header = request.headers.get("authorization") ?? "";
+  const match = /^Bearer\s+(.+)$/.exec(header.trim());
+  if (!match) return false;
+  const provided = Buffer.from(match[1].trim());
+  const expected = Buffer.from(token);
+  return (
+    provided.length === expected.length && crypto.timingSafeEqual(provided, expected)
+  );
+}
+
+function sessionFromCookieHeader(request: Request): SessionData | null {
   const cookieHeader = request.headers.get("cookie") ?? "";
   const pair = cookieHeader
     .split(";")
@@ -27,9 +57,28 @@ export function sessionFromRequest(request: Request): SessionData | null {
   return verifySessionToken(pair.slice(SESSION_COOKIE_NAME.length + 1));
 }
 
+/**
+ * The single admin check for operator routes. Accepts the Bearer token
+ * always; accepts the demo session only outside production (or when no
+ * ADMIN_TOKEN is configured, i.e. plain local dev).
+ */
+export function isAdminRequest(request: Request): boolean {
+  if (isAdminBearer(request)) return true;
+  if (process.env.NODE_ENV === "production" && adminAuthConfigured()) return false;
+  return sessionFromCookieHeader(request) !== null;
+}
+
+/** @deprecated Use isAdminRequest — kept for the incremental migration. */
+export function sessionFromRequest(request: Request): SessionData | null {
+  return sessionFromCookieHeader(request);
+}
+
 export function unauthorized(): NextResponse {
   return NextResponse.json(
-    { error: "Sign in first — PSP settings can only be changed by an authenticated operator." },
+    {
+      error:
+        "Operator sign-in required — this action is restricted to the merchant admin (ADMIN_TOKEN).",
+    },
     { status: 401 }
   );
 }

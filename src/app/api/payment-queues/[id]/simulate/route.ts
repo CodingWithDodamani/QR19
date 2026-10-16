@@ -44,7 +44,7 @@ export async function POST(
     );
   }
 
-  const limit = rateLimit(request, "simulate");
+  const limit = await rateLimit(request, "simulate");
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Too many simulations. Try again shortly." },

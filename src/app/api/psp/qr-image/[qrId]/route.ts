@@ -41,7 +41,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ qrId: string }> }
 ) {
-  const limit = rateLimit(request, "pspQrImage");
+  const limit = await rateLimit(request, "pspQrImage");
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Too many image requests." },

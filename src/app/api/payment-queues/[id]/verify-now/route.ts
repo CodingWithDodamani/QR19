@@ -26,7 +26,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const limit = rateLimit(request, "verifyNow");
+  const limit = await rateLimit(request, "verifyNow");
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Too many checks. Try again in a few seconds." },

@@ -60,7 +60,7 @@ export function Navbar() {
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "border-b border-[#e5e7eb]/80 bg-white/85 shadow-[0_1px_16px_-6px_rgba(18,26,38,0.12)] backdrop-blur-xl"
+          ? "border-b border-[#e5e7eb]/80 dark:border-[#e2e8f0]/20 bg-white/85 dark:bg-[#0f172a]/90 shadow-[0_1px_16px_-6px_rgba(18,26,38,0.12)] backdrop-blur-xl"
           : "border-b border-transparent bg-transparent"
       }`}
     >
@@ -106,7 +106,7 @@ export function Navbar() {
           <span className="grid size-9 place-items-center rounded-xl bg-[#121a26] text-white shadow-[0_6px_18px_-6px_rgba(18,26,38,0.6)] transition-transform duration-300 group-hover:rotate-6 group-hover:scale-105">
             <QrCode size={18} aria-hidden="true" />
           </span>
-          <span className="text-[19px] font-bold tracking-tight text-[#121a26]">
+          <span className="text-[19px] font-bold tracking-tight text-[#121a26] dark:text-[#f8fafc]">
             QR<span className="text-gradient">19</span>
           </span>
         </Link>
@@ -116,7 +116,7 @@ export function Navbar() {
             <a
               key={link.href}
               href={link.href}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-[#5d708c] transition-colors hover:bg-[#121a26]/5 hover:text-[#121a26]"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-[#5d708c] dark:text-[#94a3b8] transition-colors hover:bg-[#121a26]/5 dark:hover:bg-[#e2e8f0]/10 hover:text-[#121a26] dark:hover:text-[#f8fafc]"
             >
               {link.label}
             </a>
@@ -130,13 +130,15 @@ export function Navbar() {
               <ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-0.5" aria-hidden="true" />
             </a>
           </Button>
+          <span aria-hidden="true" className="mx-1 h-6 w-px bg-[#121a26]/10 dark:bg-[#e2e8f0]/20" />
+          <ThemeToggle className="rounded-full border border-[#121a26]/10 dark:border-[#e2e8f0]/20 text-[#121a26] dark:text-[#f8fafc] hover:bg-[#121a26]/5 dark:hover:bg-[#e2e8f0]/10" />
         </div>
 
         <div className="ml-auto flex items-center gap-1 md:hidden">
           <ThemeToggle />
         <button
           type="button"
-          className="ml-auto grid size-10 place-items-center rounded-lg text-[#121a26] transition-colors hover:bg-[#121a26]/5 md:hidden"
+          className="ml-auto grid size-10 place-items-center rounded-lg text-[#121a26] dark:text-[#f8fafc] transition-colors hover:bg-[#121a26]/5 dark:hover:bg-[#e2e8f0]/10 md:hidden"
           aria-expanded={menuOpen}
           aria-label={menuOpen ? "Close menu" : "Open menu"}
           onClick={() => setMenuOpen((open) => !open)}
@@ -153,7 +155,7 @@ export function Navbar() {
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden border-b border-[#e5e7eb]/70 bg-white/95 backdrop-blur-xl md:hidden"
+            className="overflow-hidden border-b border-[#e5e7eb]/70 dark:border-[#e2e8f0]/20 bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-xl md:hidden"
           >
             <div className="space-y-1 px-4 py-4">
               {NAV_LINKS.map((link) => (
@@ -161,7 +163,7 @@ export function Navbar() {
                   key={link.href}
                   href={link.href}
                   onClick={() => setMenuOpen(false)}
-                  className="block rounded-lg px-3 py-2.5 text-[15px] font-medium text-[#5d708c] transition-colors hover:bg-[#121a26]/5 hover:text-[#121a26]"
+                  className="block rounded-lg px-3 py-2.5 text-[15px] font-medium text-[#5d708c] dark:text-[#94a3b8] transition-colors hover:bg-[#121a26]/5 dark:hover:bg-[#e2e8f0]/10 hover:text-[#121a26] dark:hover:text-[#f8fafc]"
                 >
                   {link.label}
                 </a>

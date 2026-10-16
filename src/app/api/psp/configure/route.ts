@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 
 import {
+  isAdminRequest,
   publicOrigin,
-  sessionFromRequest,
   unauthorized,
 } from "@/lib/payment/psp-auth";
 import { rateLimit } from "@/lib/payment/rate-limit";
@@ -52,9 +52,10 @@ function providerWebhookUrl(provider: PspProvider, request: Request): string {
 }
 
 export async function POST(request: Request) {
-  if (!sessionFromRequest(request)) return unauthorized();
+  // P0-2: operator-only — ADMIN_TOKEN bearer in prod, demo session locally.
+  if (!isAdminRequest(request)) return unauthorized();
 
-  const limit = rateLimit(request, "pspConfigure");
+  const limit = await rateLimit(request, "pspConfigure");
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Too many attempts. Try again in a minute." },
@@ -199,9 +200,10 @@ export async function POST(request: Request) {
  * back to clearly-labeled demo mode.
  */
 export async function DELETE(request: Request) {
-  if (!sessionFromRequest(request)) return unauthorized();
+  // P0-2: operator-only — ADMIN_TOKEN bearer in prod, demo session locally.
+  if (!isAdminRequest(request)) return unauthorized();
 
-  const limit = rateLimit(request, "pspConfigure");
+  const limit = await rateLimit(request, "pspConfigure");
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Too many attempts. Try again in a minute." },

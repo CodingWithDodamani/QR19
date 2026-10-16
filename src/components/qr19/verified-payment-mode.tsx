@@ -810,16 +810,24 @@ export function VerifiedPaymentMode({
       if (staffBusy) return;
       setStaffBusy(true);
       try {
+        // P0-2: staff overrides are operator-only — attach the saved ADMIN_TOKEN.
+        const saved =
+          typeof window !== "undefined"
+            ? window.sessionStorage.getItem("qr19-admin-token")
+            : null;
+        const authHeader: Record<string, string> = saved
+          ? { Authorization: `Bearer ${saved}` }
+          : {};
         if (action === "skip" && current) {
           await fetch(`/api/payment-queues/${queueId}/orders/${current.orderId}/override`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...authHeader },
             body: JSON.stringify({ action: "skip", reason: staffReason }),
           });
         } else if (action === "cancel") {
           await fetch(`/api/payment-queues/${queueId}/cancel`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...authHeader },
             body: JSON.stringify({ reason: staffReason }),
           });
         }

@@ -99,7 +99,7 @@ export function HowItWorks() {
 
               <div
                 ref={spotlight}
-                className={`spotlight flex w-full flex-1 flex-col rounded-2xl border border-[#e3e8ef] bg-white px-6 pb-6 pt-12 transition-all duration-300 hover:-translate-y-[3px] ${step.glow}`}
+                className={`spotlight flex w-full flex-1 flex-col rounded-2xl border border-[#e3e8ef] dark:border-[#e2e8f0]/20 bg-white dark:bg-[#1e293b] px-6 pb-6 pt-12 transition-all duration-300 hover:-translate-y-[3px] ${step.glow}`}
               >
                 <span aria-hidden="true" className="monks-num">
                   {step.step}
@@ -107,8 +107,8 @@ export function HowItWorks() {
                 <span className={`text-[11px] font-bold uppercase tracking-[0.18em] ${step.label}`}>
                   Step {step.step}
                 </span>
-                <h3 className="mt-1.5 text-[18px] font-semibold tracking-tight text-[#26364a]">{step.title}</h3>
-                <p className="mt-2 text-[13.5px] leading-relaxed text-[#65748b]">{step.copy}</p>
+                <h3 className="mt-1.5 text-[18px] font-semibold tracking-tight text-[#26364a] dark:text-[#f8fafc]">{step.title}</h3>
+                <p className="mt-2 text-[13.5px] leading-relaxed text-[#65748b] dark:text-[#94a3b8]">{step.copy}</p>
               </div>
             </Reveal>
           ))}

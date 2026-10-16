@@ -10,24 +10,28 @@ const BENEFITS = [
   {
     Icon: Scale,
     tint: "bg-[#e9f0ff] text-[#006aff]",
+    tintDark: "bg-[#003159] text-[#87e6ff]",
     title: "Exact amounts, enforced",
     copy: "Even ₹1 short never completes a QR. The server checks the captured amount to the paise before anything advances.",
   },
   {
     Icon: Fingerprint,
     tint: "bg-[#e6f7ec] text-[#16a34a]",
+    tintDark: "bg-[#0f2a1d] text-[#4ade80]",
     title: "One proof, one QR",
     copy: "A provider transaction reference can verify exactly one code, ever. Reused screenshots are blocked and alarmed.",
   },
   {
     Icon: WifiOff,
     tint: "bg-[#fef3d6] text-[#9a6206]",
+    tintDark: "bg-[#3b1f00] text-[#fbbf24]",
     title: "Offline-first collection",
     copy: "Generate QRs and queue collections with no connection. Everything syncs itself the moment you're back.",
   },
   {
     Icon: IndianRupee,
     tint: "bg-[#eeedf9] text-[#5140b5]",
+    tintDark: "bg-[#2e1b47] text-[#a78bfa]",
     title: "₹0, no signup, no tracking",
     copy: "No accounts, no fees, no analytics. Merchant secrets stay AES-256-GCM encrypted on your own server.",
   },
@@ -35,7 +39,7 @@ const BENEFITS = [
 
 export function Benefits() {
   return (
-    <section id="benefits" className="scroll-mt-24 bg-white py-20 lg:py-28" aria-labelledby="benefits-title">
+    <section id="benefits" className="scroll-mt-24 bg-white dark:bg-[#121a26] py-20 lg:py-28" aria-labelledby="benefits-title">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <SectionHeading
           id="benefits-title"
@@ -48,15 +52,15 @@ export function Benefits() {
           subtitle="Every claim below is enforced server-side — try to break one in demo mode and watch the shield hold."
         />
         <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2">
-          {BENEFITS.map(({ Icon, tint, title, copy }, i) => (
+          {BENEFITS.map(({ Icon, tint, tintDark, title, copy }, i) => (
             <Reveal key={title} delay={(i % 2) * 0.08}>
-              <div className="spotlight flex h-full items-start gap-4 rounded-2xl border border-[#e3e8ef] bg-white p-6">
-                <span className={`grid size-12 shrink-0 place-items-center rounded-xl ${tint}`}>
+              <div className="spotlight flex h-full items-start gap-4 rounded-2xl border border-[#e3e8ef] dark:border-[#e2e8f0]/20 bg-white dark:bg-[#1e293b] p-6">
+                <span className={`grid size-12 shrink-0 place-items-center rounded-xl ${tint} dark:${tintDark}`}>
                   <Icon size={22} aria-hidden="true" />
                 </span>
                 <div>
-                  <h3 className="text-[16px] font-semibold text-[#121a26]">{title}</h3>
-                  <p className="mt-1.5 text-[13.5px] leading-relaxed text-[#65748b]">{copy}</p>
+                  <h3 className="text-[16px] font-semibold text-[#121a26] dark:text-[#f8fafc]">{title}</h3>
+                  <p className="mt-1.5 text-[13.5px] leading-relaxed text-[#65748b] dark:text-[#94a3b8]">{copy}</p>
                 </div>
               </div>
             </Reveal>

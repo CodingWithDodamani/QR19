@@ -114,18 +114,18 @@ export function DownloadCta() {
             whileInView={{ opacity: 1, scale: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            className="w-64 rounded-3xl bg-white p-5 text-center shadow-[0_30px_70px_-24px_rgba(0,0,0,0.5)] sm:w-72"
+            className="w-64 rounded-3xl bg-white dark:bg-[#1e293b] p-5 text-center shadow-[0_30px_70px_-24px_rgba(0,0,0,0.5)] sm:w-72"
           >
             {appQr ? (
               <img src={appQr} alt="QR code linking to the QR19 mobile app" width={280} height={280} className="w-full rounded-2xl" />
             ) : (
-              <span className="block aspect-square w-full animate-pulse rounded-2xl bg-[#eef1f6]" aria-hidden="true" />
+              <span className="block aspect-square w-full animate-pulse rounded-2xl bg-[#eef1f6] dark:bg-[#334155]" aria-hidden="true" />
             )}
-            <p className="mt-4 flex items-center justify-center gap-2 text-[13px] font-semibold text-[#121a26]">
+            <p className="mt-4 flex items-center justify-center gap-2 text-[13px] font-semibold text-[#121a26] dark:text-[#f8fafc]">
               <QrCode size={15} aria-hidden="true" />
               Scan to open the app
             </p>
-            <p className="mt-1 break-all font-mono text-[11px] text-[#65748b]">{appUrl || "…"}</p>
+            <p className="mt-1 break-all font-mono text-[11px] text-[#65748b] dark:text-[#94a3b8]">{appUrl || "…"}</p>
           </motion.div>
         </Reveal>
       </div>

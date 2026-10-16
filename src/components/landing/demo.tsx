@@ -31,13 +31,13 @@ export function Demo() {
           {/* Gradient hairline ring around the tool */}
           <div className="rounded-[26px] bg-gradient-to-br from-[#635bff]/40 via-[#e3e8ef] to-[#00baf2]/40 p-px shadow-[0_24px_70px_-30px_rgba(36,54,75,0.25)]">
             <div className="rounded-[25px] bg-white/40 p-px backdrop-blur-md">
-              <div className="rounded-3xl border border-[#e3e8ef] bg-white/50 p-3 shadow-[0_24px_70px_-30px_rgba(36,54,75,0.25)] backdrop-blur-sm sm:p-6">
+              <div className="rounded-3xl border border-[#e3e8ef] dark:border-[#e2e8f0]/20 bg-white/50 dark:bg-[#1e293b]/50 p-3 shadow-[0_24px_70px_-30px_rgba(36,54,75,0.25)] backdrop-blur-sm sm:p-6">
                 <QrTool />
               </div>
             </div>
           </div>
 
-          <p className="mt-5 flex items-center justify-center gap-2 text-center text-[12px] text-[#8b96a8]">
+          <p className="mt-5 flex items-center justify-center gap-2 text-center text-[12px] text-[#8b96a8] dark:text-[#94a3b8]">
             <LockKeyhole size={12} aria-hidden="true" />
             Just for laughs. Not recommended for actual use. We’re not lawyers, and this isn’t legal advice.
           </p>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { isAdminRequest, unauthorized } from "@/lib/payment/psp-auth";
 import { rateLimit } from "@/lib/payment/rate-limit";
 import { cancelQueue, ServiceError } from "@/lib/payment/service";
 
@@ -16,7 +17,10 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const limit = rateLimit(request, "override");
+  // P0-2: staff override — operator-only (ADMIN_TOKEN in prod).
+  if (!isAdminRequest(request)) return unauthorized();
+
+  const limit = await rateLimit(request, "override");
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Too many requests." },

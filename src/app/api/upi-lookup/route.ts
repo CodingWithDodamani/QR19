@@ -55,14 +55,14 @@ export async function POST(request: NextRequest) {
   }
 
   // 2. Rate limits — per IP and per session (anti bulk-lookup / harvesting).
-  const ipLimit = rateLimit(request, "lookup");
+  const ipLimit = await rateLimit(request, "lookup");
   if (!ipLimit.allowed) {
     return NextResponse.json(
       { error: "rate_limited", message: "Too many lookups from this network." },
       { status: 429, headers: { "Retry-After": String(ipLimit.retryAfterSecs) } }
     );
   }
-  const sessionLimit = rateLimitKeyed("lookupSession", session.sid);
+  const sessionLimit = await rateLimitKeyed("lookupSession", session.sid);
   if (!sessionLimit.allowed) {
     return NextResponse.json(
       { error: "rate_limited", message: "Too many lookups. Please wait a moment." },

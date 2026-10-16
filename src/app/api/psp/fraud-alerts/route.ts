@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { listFraudAlerts } from "@/lib/payment/fraud";
-import { sessionFromRequest, unauthorized } from "@/lib/payment/psp-auth";
+import { isAdminRequest, unauthorized } from "@/lib/payment/psp-auth";
 import { rateLimit } from "@/lib/payment/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -16,10 +16,11 @@ export const dynamic = "force-dynamic";
  * summary for the console badge.
  */
 export async function GET(request: Request) {
-  const session = sessionFromRequest(request);
+  // P0-2: operator-only — ADMIN_TOKEN bearer in prod, demo session locally.
+  const session = isAdminRequest(request);
   if (!session) return unauthorized();
 
-  const limit = rateLimit(request, "pspFraudAlerts");
+  const limit = await rateLimit(request, "pspFraudAlerts");
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Slow down." },

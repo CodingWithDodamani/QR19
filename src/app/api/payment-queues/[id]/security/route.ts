@@ -22,7 +22,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const limit = rateLimit(request, "queueSecurity");
+  const limit = await rateLimit(request, "queueSecurity");
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Slow down." },

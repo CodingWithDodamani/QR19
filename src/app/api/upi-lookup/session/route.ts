@@ -1,9 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import {
-  rateLimit,
-  rateLimitKeyed,
-} from "@/lib/payment/rate-limit";
+import { rateLimit } from "@/lib/payment/rate-limit";
 import {
   createSessionToken,
   getSessionFromRequest,
@@ -41,7 +38,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const limit = rateLimit(request, "lookupSessionCreate");
+  const limit = await rateLimit(request, "lookupSessionCreate");
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Too many sign-in attempts. Try again shortly." },

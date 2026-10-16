@@ -1,12 +1,16 @@
 /**
  * Production boot guard for secrets.
  *
- * Both session signing (`SESSION_SECRET`, see upi-lookup/session.ts) and PSP
+ * Session signing (`SESSION_SECRET`, see upi-lookup/session.ts) and PSP
  * credential encryption (`PSP_ENCRYPTION_KEY`, see payment/psp-settings.ts)
  * silently fall back to PUBLIC demo keys when unset or short. That is fine
  * for local development, but in production it would mean forgeable sessions
  * and decryptable merchant secrets — so production refuses to boot without
  * real keys (fail closed).
+ *
+ * P0-2: `ADMIN_TOKEN` gates every operator endpoint (PSP configure, event
+ * monitors, staff skip/cancel). Without it in production the console would
+ * fall back to the demo session anyone can mint — so it is required too.
  *
  * This module is dependency-free on purpose: it runs inside
  * `src/instrumentation.ts` at server boot and inside unit tests.
@@ -15,7 +19,7 @@
 /** Minimum secret length enforced in production (256-bit string). */
 export const MIN_PROD_SECRET_LENGTH = 32;
 
-const PROD_KEYS = ["SESSION_SECRET", "PSP_ENCRYPTION_KEY"] as const;
+const PROD_KEYS = ["SESSION_SECRET", "PSP_ENCRYPTION_KEY", "ADMIN_TOKEN"] as const;
 
 export interface EnvIssue {
   key: (typeof PROD_KEYS)[number];

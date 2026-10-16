@@ -9,6 +9,7 @@ import { Faq } from "@/components/landing/faq";
 import { Features } from "@/components/landing/features";
 import { Footer } from "@/components/landing/footer";
 import { Hero } from "@/components/landing/hero";
+import { MobileCtaBar } from "@/components/landing/mobile-cta-bar";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { Navbar } from "@/components/landing/navbar";
 import { PricingStrip } from "@/components/landing/pricing-strip";
@@ -28,7 +29,7 @@ export default function Home() {
     <MotionConfig reducedMotion="user">
       <div className="app-shell">
         <Navbar />
-        <main className="flex-1">
+        <main className="flex-1 pb-[80px] sm:pb-0">
           <Hero />
           <AppsMarquee />
           <StatsBand />
@@ -44,6 +45,7 @@ export default function Home() {
           <Faq />
         </main>
         <Footer />
+        <MobileCtaBar />
       </div>
     </MotionConfig>
   );

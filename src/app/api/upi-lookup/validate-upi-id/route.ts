@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const limit = rateLimit(request, "lookupValidate");
+  const limit = await rateLimit(request, "lookupValidate");
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "rate_limited", message: "Too many checks. Please wait a moment." },

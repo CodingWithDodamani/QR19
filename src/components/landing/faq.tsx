@@ -51,7 +51,7 @@ export function Faq() {
   }
 
   return (
-    <section id="faq" className="scroll-mt-24 bg-white py-20 lg:py-28" aria-labelledby="faq-title">
+    <section id="faq" className="scroll-mt-24 bg-white dark:bg-[#0f172a] py-20 lg:py-28" aria-labelledby="faq-title">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
         <SectionHeading
           id="faq-title"
@@ -67,7 +67,7 @@ export function Faq() {
             {FAQS.map((faq, index) => {
               const open = openIndex === index;
               return (
-                <div key={faq.question} className="border-b border-[#e3e8ef] last:border-b-0">
+                <div key={faq.question} className="border-b border-[#e3e8ef] dark:border-[#e2e8f0]/20 last:border-b-0">
                   <h3 className="flex">
                     <button
                       ref={(node) => {
@@ -79,12 +79,12 @@ export function Faq() {
                       aria-controls={`faq-panel-${index}`}
                       onClick={() => setOpenIndex(open ? null : index)}
                       onKeyDown={(event) => onTriggerKeyDown(event, index)}
-                      className="flex flex-1 items-start justify-between gap-4 rounded-xl px-5 py-4 text-left text-[15px] font-medium text-[#26364a] transition-colors outline-none hover:bg-[#635bff]/5 hover:no-underline focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      className="flex flex-1 items-start justify-between gap-4 rounded-xl px-5 py-4 text-left text-[15px] font-medium text-[#26364a] dark:text-[#f8fafc] transition-colors outline-none hover:bg-[#635bff]/5 hover:no-underline focus-visible:ring-[3px] focus-visible:ring-ring/50"
                     >
                       {faq.question}
                       <ChevronDownIcon
                         aria-hidden="true"
-                        className={`text-muted-foreground pointer-events-none size-4 shrink-0 translate-y-0.5 transition-transform duration-200 ${open ? "rotate-180 text-[#635bff]" : ""}`}
+                        className={`text-muted-foreground pointer-events-none size-4 shrink-0 translate-y-0.5 transition-transform duration-200 ${open ? "rotate-180 text-[#635bff] dark:text-[#87e64b]" : "text-[#635bff] dark:text-[#87e64b]"}`}
                       />
                     </button>
                   </h3>
@@ -96,7 +96,7 @@ export function Faq() {
                     className="faq-panel overflow-hidden text-sm"
                   >
                     <div>
-                      <p className="px-5 pb-5 pt-0 text-[13.5px] leading-relaxed text-[#65748b]">
+                      <p className="px-5 pb-5 pt-0 text-[13.5px] leading-relaxed text-[#65748b] dark:text-[#94a3b8]">
                         {faq.answer}
                       </p>
                     </div>

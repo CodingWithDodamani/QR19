@@ -48,7 +48,7 @@ export const dynamic = "force-dynamic";
  * process anything (403).
  */
 export async function POST(request: Request) {
-  const limit = rateLimit(request, "webhook");
+  const limit = await rateLimit(request, "webhook");
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Too many webhook deliveries." },
