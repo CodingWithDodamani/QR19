@@ -25,6 +25,13 @@ export default function setup(): void {
   }
   execFileSync(
     process.execPath,
+    ["scripts/choose-prisma-provider.mjs", "sqlite"],
+    // The isolated test DB is SQLite regardless of what a deploy env set
+    // (e.g. a Postgres DATABASE_URL on Vercel pulled into local env files).
+    { cwd: root, stdio: "inherit" }
+  );
+  execFileSync(
+    process.execPath,
     ["node_modules/prisma/build/index.js", "db", "push", "--accept-data-loss", "--schema", "prisma/schema.prisma"],
     {
       cwd: root,

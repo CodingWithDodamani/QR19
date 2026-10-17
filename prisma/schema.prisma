@@ -9,6 +9,13 @@ generator client {
 }
 
 datasource db {
+  // Single source of truth for BOTH dev (SQLite) and hosted deploys
+  // (PostgreSQL on Vercel). The provider line is flipped by
+  // `scripts/choose-prisma-provider.*` — automatically on install/test setup
+  // (default SQLite; PostgreSQL when DATABASE_URL is a postgres:// URL, e.g.
+  // on Vercel), and manually via `node scripts/choose-prisma-provider.mjs
+  // postgresql` for a one-time `prisma db push` against the hosted DB.
+  // Prisma itself doesn't allow env() here (P1012), hence the script.
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }

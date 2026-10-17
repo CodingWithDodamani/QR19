@@ -8,6 +8,10 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # DATABASE_URL at job level so the postinstall `prisma generate` can
+    # resolve the schema's env()-backed url in every step (SQLite = file URL).
+    env:
+      DATABASE_URL: file:../db/custom.db
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,5 +27,3 @@ jobs:
         name: tests (vitest)
       - run: npm run build
         name: build (type errors fail the build)
-        env:
-          DATABASE_URL: file:../db/custom.db
