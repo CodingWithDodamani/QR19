@@ -75,7 +75,14 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${inter.variable} ${interTight.variable} ${geistSans.variable} ${geistMono.variable}`}
     >
-      <body className="antialiased bg-background text-foreground">
+      {/* suppressHydrationWarning: browser extensions stamp attributes onto
+          <body> before React hydrates (e.g. `__processed_<uuid>__`); this
+          silences attribute-only diffs on body itself — child mismatches are
+          still detected. */}
+      <body
+        suppressHydrationWarning
+        className="antialiased bg-background text-foreground"
+      >
         <GoogleAnalytics />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
